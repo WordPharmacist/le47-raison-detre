@@ -165,6 +165,17 @@ app.post('/api/import/replace', async (req, res) => {
   }
 });
 
+// ─── DELETE all contributions ───
+app.delete('/api/contributions/all', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM contributions');
+    res.json({ deleted: rowCount });
+  } catch (e) {
+    console.error('DELETE /api/contributions/all error:', e);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ─── Serve the app ───
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

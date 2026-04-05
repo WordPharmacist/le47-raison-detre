@@ -188,9 +188,13 @@ footer p { font-size: 12px; color: var(--text-muted); }
           <label class="btn-sm" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
         </div>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
           <button class="btn-sm btn-json" id="export-json">↓ JSON</button>
           <button class="btn-sm btn-csv" id="export-csv">↓ CSV</button>
+        </div>
+        <p style="font-size:12px; color:var(--coral); margin-bottom:10px; font-weight:600;">Zone dangereuse</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-sm" id="delete-all-btn" style="background:rgba(224,122,95,0.15); border-color:rgba(224,122,95,0.5); color:var(--coral);">🗑 Supprimer tout le registre</button>
         </div>
       </div>
       <div id="registry-list">
@@ -553,6 +557,29 @@ document.getElementById('import-replace-btn').addEventListener('change', async (
     await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
   } catch { alert('❌ Fichier JSON invalide.'); }
   ev.target.value = '';
+});
+
+// ─── Delete all ───
+document.getElementById('delete-all-btn').addEventListener('click', async () => {
+  if (entries.length === 0) { alert('Le registre est déjà vide.'); return; }
+  const input = prompt(
+    `⚠️ ATTENTION — ACTION IRRÉVERSIBLE\n\nCette action va supprimer définitivement les ${entries.length} contribution(s) du registre.\n\nPour confirmer, tape exactement :\nsupprimer le registre`
+  );
+  if (input === null) return; // cancelled
+  if (input.trim().toLowerCase() !== 'supprimer le registre') {
+    alert('❌ Texte incorrect. Suppression annulée.');
+    return;
+  }
+  try {
+    const result = await apiDelete('/api/contributions/all');
+    alert(`✅ Registre vidé. ${result.deleted} contribution(s) supprimée(s).`);
+    entries = [];
+    updateWords();
+    renderRegistry();
+    renderCloud();
+  } catch (e) {
+    alert('❌ Erreur lors de la suppression.');
+  }
 });
 
 // ─── Word Cloud ───
