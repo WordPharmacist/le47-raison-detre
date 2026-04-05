@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le 47 — Raison d'Être Évolutive</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e17;
+  --bg-card: rgba(255,255,255,0.04);
+  --accent: #e8c547;
+  --accent-dim: #c9a82e;
+  --ice: #a8d8ea;
+  --ice-deep: #3b6978;
+  --ocean: #0b3954;
+  --ocean-dark: #061a2e;
+  --text: #e4e4e4;
+  --text-muted: #8899aa;
+  --text-dark: #1a1a2e;
+  --coral: #e07a5f;
+  --mint: #81b29a;
+  --lavender: #b8a9c9;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'DM Sans', sans-serif; min-height: 100vh;
+  overflow-x: hidden;
+}
+.bg-deco {
+  position: fixed; top:0; left:0; right:0; bottom:0; pointer-events:none;
+  background: radial-gradient(ellipse at 20% 50%, rgba(11,57,84,0.3) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(232,197,71,0.05) 0%, transparent 50%);
+}
+.container { max-width: 700px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+header { text-align: center; padding: 50px 20px 30px; position: relative; z-index:1; }
+.logo {
+  display: inline-flex; width: 56px; height: 56px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--coral));
+  align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 800; color: var(--text-dark);
+  font-family: 'Playfair Display', Georgia, serif;
+  box-shadow: 0 4px 20px rgba(232,197,71,0.4); margin-bottom: 16px;
+}
+h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 36px; font-weight: 700; margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--ice));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.subtitle { color: var(--text-muted); font-size: 15px; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+nav { display: flex; justify-content: center; gap: 6px; padding: 0 20px 30px; position: relative; z-index:1; }
+.tab-btn {
+  padding: 10px 22px; border: none; border-radius: 30px;
+  background: rgba(255,255,255,0.06); color: var(--text-muted);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; transition: all 0.3s ease;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  color: var(--text-dark);
+}
+.card {
+  background: var(--bg-card); border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.08); padding: 36px 30px;
+  backdrop-filter: blur(20px);
+}
+.tab-content { display: none; animation: fadeIn 0.4s ease; }
+.tab-content.active { display: block; }
+label.field-label {
+  display: block; font-size: 13px; color: var(--text-muted);
+  margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;
+}
+input.field {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 12px 16px; color: var(--text); font-size: 15px;
+  font-family: 'DM Sans', sans-serif; outline: none; width: 100%;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+input.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,197,71,0.13); }
+input.field::placeholder { color: rgba(255,255,255,0.25); }
+.cause-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cause-num {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px; width: 24px; text-align: center; color: var(--text-muted); transition: color 0.3s;
+}
+.cause-num.filled { color: var(--accent); }
+.submit-btn {
+  margin-top: 28px; width: 100%; padding: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  border: none; border-radius: 10px; color: var(--text-dark);
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; letter-spacing: 0.5px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(232,197,71,0.4); }
+.cause-count { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 10px; }
+.thanks { text-align: center; padding: 60px 20px; animation: fadeInUp 0.6s ease; }
+.thanks h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; color: var(--accent); margin: 16px 0 12px; }
+.thanks p { color: var(--text-muted); font-size: 15px; line-height: 1.6; }
+.registry { margin-top: 28px; }
+.registry-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.registry-title { font-size: 13px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+.btn-sm {
+  padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif; border: 1px solid; transition: all 0.3s;
+}
+.btn-import { background: rgba(129,178,154,0.1); border-color: rgba(129,178,154,0.4); color: var(--mint); }
+.btn-json { background: rgba(232,197,71,0.1); border-color: rgba(232,197,71,0.4); color: var(--accent); }
+.btn-csv { background: rgba(168,216,234,0.1); border-color: rgba(168,216,234,0.4); color: var(--ice); }
+.entry-row {
+  background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+}
+.entry-pseudo { color: var(--accent); font-weight: 600; font-size: 14px; }
+.entry-causes { color: var(--text-muted); font-size: 13px; margin-left: 10px; }
+.entry-date { font-size: 11px; color: var(--text-muted); }
+.registry-note { margin-top: 14px; font-size: 11px; color: var(--text-muted); opacity: 0.6; font-style: italic; }
+.cloud-wrap { position: relative; min-height: 450px; overflow: hidden; }
+.cloud-word {
+  font-family: 'Playfair Display', Georgia, serif; transition: all 0.4s ease; cursor: default;
+  position: absolute; white-space: nowrap;
+}
+.cloud-word:hover { transform: scale(1.15); filter: brightness(1.3); }
+footer {
+  text-align: center; padding: 30px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index:1;
+}
+footer p { font-size: 12px; color: var(--text-muted); }
+@keyframes fadeInUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+@keyframes pulse { 0%,100% { opacity: 0.3; transform: scale(1); } 50% { opacity:1; transform: scale(1.3); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(232,197,71,0.25); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="bg-deco"></div>
+
+<header>
+  <div class="logo">47</div>
+  <h1>La Raison d'Être du 47</h1>
+  <p class="subtitle">Un espace autogéré dont la raison d'être est vivante,<br>nourrie par celles et ceux qui le font exister.</p>
+</header>
+
+<nav id="tabs">
+  <button class="tab-btn active" data-tab="contribute">✦ Contribuer</button>
+  <button class="tab-btn" data-tab="cloud">☁ Nuage</button>
+</nav>
+
+<div class="container" style="padding-bottom:60px;">
+
+  <!-- CONTRIBUTE -->
+  <div class="tab-content active" id="tab-contribute">
+    <div class="card" id="form-card">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--accent); margin-bottom:6px;">Nourris la raison d'être</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5;">Quelles causes te portent ? Chaque contribution enrichit l'identité vivante du 47.</p>
+      <div id="cause-form">
+        <div style="margin-bottom:24px;">
+          <label class="field-label">Ton pseudo</label>
+          <input class="field" id="pseudo" placeholder="Comment tu t'appelles ?" maxlength="30">
+        </div>
+        <label class="field-label" style="margin-bottom:12px;">Tes causes (1 à 5) — max 3 mots chacune</label>
+        <div id="cause-inputs"></div>
+        <button class="submit-btn" id="submit-btn">Contribuer à la raison d'être ✦</button>
+        <p class="cause-count" id="cause-count">0/5 cause renseignée</p>
+      </div>
+      <div id="thanks-msg" style="display:none;"></div>
+    </div>
+
+    <!-- Registry -->
+    <div class="card registry" id="registry-card">
+      <div class="registry-header">
+        <span class="registry-title" id="registry-title">Registre (0 contribution)</span>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="btn-sm" id="toggle-tools-btn" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:11px;">⚙ Outils</button>
+        </div>
+      </div>
+      <div id="tools-panel" style="display:none; margin-bottom:16px; padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px;">
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Import</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <label class="btn-sm btn-import" style="cursor:pointer;">↑ Ajouter au registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
+          <label class="btn-sm" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
+        </div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-sm btn-json" id="export-json">↓ JSON</button>
+          <button class="btn-sm btn-csv" id="export-csv">↓ CSV</button>
+        </div>
+      </div>
+      <div id="registry-list">
+        <p style="color:var(--text-muted); font-size:13px; font-style:italic;">Chargement…</p>
+      </div>
+      <div class="registry-note">Seule la dernière contribution peut être modifiée.</div>
+    </div>
+  </div>
+
+  <!-- WORD CLOUD -->
+  <div class="tab-content" id="tab-cloud">
+    <div class="card" style="text-align:center; min-height:300px;">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--ice); margin-bottom:6px;">Le Nuage des Causes</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">Les causes les plus récentes et fréquentes apparaissent plus grandes.</p>
+      <div class="cloud-wrap" id="word-cloud">
+        <p style="color:var(--text-muted); font-style:italic; padding:40px 0;">Chargement…</p>
+      </div>
+      <button id="export-cloud-img" class="btn-sm" style="margin-top:16px; background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice); display:none;">📷 Exporter le nuage en image</button>
+    </div>
+
+    <div style="margin-top:30px; padding:28px 20px; text-align:center; background:linear-gradient(135deg, var(--ocean-dark), var(--ocean)); border-radius:14px; border:1px solid rgba(59,105,120,0.25);">
+      <div style="font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--ice); font-weight:700; margin-bottom:12px;">LA Raison d'Être du 47</div>
+      <div style="font-family:'Playfair Display',Georgia,serif; font-size:24px; color:var(--accent); font-style:italic; padding:10px 0;">Nul si découvert</div>
+      <div style="width:60px; height:2px; margin:16px auto 0; background:linear-gradient(90deg, transparent, var(--accent), transparent);"></div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:14px; line-height:1.5; max-width:400px; margin-left:auto; margin-right:auto;">La vraie raison d'être est invisible et évolutive —<br>elle se vit mais ne se fige jamais.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer><p>Le 47 — Espace d'une communauté d'acteurs engagés · Raison d'être évolutive</p></footer>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   LE 47 — RAISON D'ÊTRE ÉVOLUTIVE
+   Dynamic version — API calls to Node.js backend
+   ═══════════════════════════════════════════════════ */
+
+const API = '';  // same origin — leave empty
+const HUES = ['#e8c547','#a8d8ea','#e07a5f','#81b29a','#b8a9c9','#ffffff'];
+const PLACEHOLDERS = ['Solidarité','Transition écologique','Art vivant','Bien commun','Éducation populaire'];
+
+let entries = [];
+let words = [];
+
+// ─── API helpers ───
+async function apiGet(path) {
+  const res = await fetch(API + path);
+  return res.json();
+}
+async function apiPost(path, body) {
+  const res = await fetch(API + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+async function apiDelete(path) {
+  const res = await fetch(API + path, { method: 'DELETE' });
+  return res.json();
+}
+
+// ─── Load all data from server ───
+async function loadFromServer() {
+  try {
+    entries = await apiGet('/api/contributions');
+  } catch (e) {
+    console.error('Erreur chargement:', e);
+    entries = [];
+  }
+}
+
+// ─── Tabs ───
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── Cause inputs ───
+const causeContainer = document.getElementById('cause-inputs');
+causeContainer.innerHTML = '';
+for (let i = 0; i < 5; i++) {
+  const row = document.createElement('div');
+  row.className = 'cause-row';
+  row.innerHTML = `<span class="cause-num" id="num-${i}">${i+1}</span><input class="field cause-field" placeholder="${PLACEHOLDERS[i]}" data-idx="${i}" maxlength="30">`;
+  causeContainer.appendChild(row);
+}
+
+document.querySelectorAll('.cause-field').forEach(input => {
+  input.addEventListener('input', () => {
+    const w = input.value.split(/\s+/);
+    if (w.length > 3) { input.value = w.slice(0,3).join(' '); }
+    const idx = input.dataset.idx;
+    document.getElementById('num-' + idx).className = input.value.trim() ? 'cause-num filled' : 'cause-num';
+    updateCauseCount();
+  });
+});
+
+function updateCauseCount() {
+  let count = 0;
+  document.querySelectorAll('.cause-field').forEach(f => { if (f.value.trim()) count++; });
+  document.getElementById('cause-count').textContent = `${count}/5 cause${count > 1 ? 's' : ''} renseignée${count > 1 ? 's' : ''}`;
+}
+
+// ─── Submit ───
+document.getElementById('submit-btn').addEventListener('click', async () => {
+  const pseudo = document.getElementById('pseudo').value.trim();
+  const causes = [];
+  document.querySelectorAll('.cause-field').forEach(f => { if (f.value.trim()) causes.push(f.value.trim()); });
+
+  if (!pseudo || causes.length === 0) {
+    const form = document.getElementById('cause-form');
+    form.style.animation = 'shake 0.4s ease';
+    setTimeout(() => form.style.animation = '', 500);
+    return;
+  }
+
+  try {
+    const newEntry = await apiPost('/api/contributions', { pseudo, causes });
+    entries.push(newEntry);
+  } catch (e) {
+    alert('Erreur lors de l\'envoi. Réessaie.');
+    return;
+  }
+
+  // Show thanks
+  document.getElementById('cause-form').style.display = 'none';
+  const thanks = document.getElementById('thanks-msg');
+  thanks.style.display = 'block';
+  thanks.innerHTML = `<div class="thanks"><div style="font-size:48px;">✦</div><h3>Merci pour ta contribution !</h3><p>La raison d'être du 47 vient de s'enrichir grâce à toi.<br>Elle est vivante, évolutive, comme nous.</p></div>`;
+
+  updateWords();
+  renderRegistry();
+  renderCloud();
+
+  setTimeout(() => {
+    thanks.style.display = 'none';
+    document.getElementById('cause-form').style.display = 'block';
+    document.getElementById('pseudo').value = '';
+    document.querySelectorAll('.cause-field').forEach(f => { f.value = ''; });
+    document.querySelectorAll('.cause-num').forEach(n => n.className = 'cause-num');
+    updateCauseCount();
+    document.querySelector('[data-tab="cloud"]').click();
+  }, 3200);
+});
+
+// ─── Word normalization ───
+function stripAccents(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function normalize(str) {
+  let s = str.trim().toLowerCase();
+  s = stripAccents(s);
+  s = s.replace(/\b(\w{3,})(es|s|x)$/i, '$1');
+  return s;
+}
+
+// ─── Thematic keywords ───
+const THEMES = {
+  'solidarité': ['solidarité','entraide','partage','don','générosité','aide','soutien','bénévolat','fraternité','hospitalité','accueil','inclusion','accessibilité','égalité','diversité','justice sociale','équité'],
+  'écologie': ['écologie','environnement','climat','transition','sobriété','nature','biodiversité','durable','recyclage','énergie','permaculture','décroissance','résilience','planète','terre','gaia','bio','végétal'],
+  'éducation': ['éducation','apprentissage','formation','transmission','savoir','connaissance','pédagogie','enseignement','école','apprendre','mentor','compétence','culture','lecture','littérature'],
+  'art & création': ['art','création','musique','danse','théâtre','peinture','sculpture','photo','cinéma','écriture','poésie','design','artisanat','imaginaire','esthétique','beauté','créativité'],
+  'bien-être': ['bien-être','santé','méditation','yoga','pleine conscience','soin','repos','équilibre','corps','esprit','bonheur','joie','amour','paix','sérénité','zen','respiration'],
+  'technologie': ['technologie','numérique','données','code','innovation','intelligence artificielle','ia','open source','logiciel','internet','web','digital','tech','algorithme','robotique'],
+  'gouvernance': ['gouvernance','démocratie','autogestion','collectif','commun','politique','citoyen','vote','assemblée','participation','pouvoir','décision','horizontalité','coopération','transparence'],
+  'entrepreneuriat': ['entrepreneuriat','entreprise','impact','social','économie','travail','projet','startup','coopérative','ess','finance','valeur','business','management','leadership'],
+  'lien social': ['lien','communauté','rencontre','réseau','vivre ensemble','convivialité','fête','repas','voisinage','quartier','local','territoire','lieu','espace','habitat','cohabitation'],
+};
+
+function findTheme(word) {
+  const low = stripAccents(word.toLowerCase());
+  for (const [theme, keywords] of Object.entries(THEMES)) {
+    for (const kw of keywords) {
+      const kwNorm = stripAccents(kw);
+      if (low.includes(kwNorm) || kwNorm.includes(low)) return theme;
+    }
+  }
+  return null;
+}
+
+// ─── Word weights ───
+function updateWords() {
+  const now = Date.now();
+  const causeMap = {};
+  const displayForms = {};
+
+  entries.forEach(entry => {
+    const age = (now - entry.timestamp) / (1000*60*60*24);
+    const recency = Math.max(0.2, 1 / (1 + age * 0.05));
+    entry.causes.forEach(cause => {
+      const original = cause.trim();
+      if (original.length < 2) return;
+      const key = normalize(original);
+      if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0 }; displayForms[key] = {}; }
+      causeMap[key].count += 1;
+      causeMap[key].weight += recency;
+      displayForms[key][original] = (displayForms[key][original] || 0) + 1;
+    });
+  });
+
+  let allWords = Object.entries(causeMap)
+    .map(([key, {count, weight}]) => {
+      const forms = Object.keys(displayForms[key]);
+      const bestForm = forms.sort((a, b) => a.length - b.length)[0];
+      return { word: bestForm, key, count, weight };
+    })
+    .sort((a, b) => b.weight - a.weight);
+
+  if (allWords.length <= 50) { words = allWords; return; }
+
+  const top = allWords.slice(0, 40);
+  const rest = allWords.slice(40);
+  const themeGroups = {};
+  const ungrouped = [];
+
+  rest.forEach(w => {
+    const theme = findTheme(w.word);
+    if (theme) {
+      if (!themeGroups[theme]) themeGroups[theme] = { count: 0, weight: 0 };
+      themeGroups[theme].count += w.count;
+      themeGroups[theme].weight += w.weight;
+    } else { ungrouped.push(w); }
+  });
+
+  const topWords = new Set(top.map(w => w.word.toLowerCase()));
+  const themeEntries = Object.entries(themeGroups)
+    .filter(([theme]) => !topWords.has(theme))
+    .map(([theme, {count, weight}]) => ({ word: '⟨ ' + theme + ' ⟩', key: theme, count, weight }))
+    .sort((a, b) => b.weight - a.weight);
+
+  const remaining = 50 - top.length - themeEntries.length;
+  const extra = remaining > 0 ? ungrouped.slice(0, remaining) : [];
+
+  words = [...top, ...themeEntries, ...extra].sort((a, b) => b.weight - a.weight).slice(0, 50);
+}
+
+// ─── Render registry ───
+function renderRegistry() {
+  const title = document.getElementById('registry-title');
+  title.textContent = `Registre (${entries.length} contribution${entries.length > 1 ? 's' : ''})`;
+
+  const list = document.getElementById('registry-list');
+  if (entries.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-muted); font-size:13px; font-style:italic;">Le registre est vide. Contribue ci-dessus !</p>';
+    return;
+  }
+
+  let showAll = false;
+  const lastId = entries[entries.length - 1].id;
+
+  function renderEntryList() {
+    const reversed = entries.slice().reverse();
+    const visible = showAll ? reversed : reversed.slice(0, 5);
+    list.innerHTML = visible.map(e => {
+      const isLast = e.id === lastId;
+      return `<div class="entry-row" ${isLast ? 'id="last-entry-row"' : ''}>
+        <div><span class="entry-pseudo">${esc(e.pseudo)}</span><span class="entry-causes">${e.causes.map(esc).join(' · ')}</span></div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          ${isLast ? '<button class="btn-sm" id="edit-last-btn" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:11px; padding:5px 12px;">✎ Modifier</button>' : ''}
+          <span class="entry-date">${new Date(e.timestamp).toLocaleDateString('fr-FR')}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    if (entries.length > 5) {
+      list.innerHTML += `<button id="toggle-entries-btn" class="btn-sm" style="display:block; margin:14px auto 0; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:12px;">${showAll ? '▲ Réduire' : '▼ Afficher les ' + entries.length + ' contributions'}</button>`;
+      document.getElementById('toggle-entries-btn').addEventListener('click', () => {
+        showAll = !showAll;
+        renderEntryList();
+        if (showAll) document.getElementById('registry-card').scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+
+    const editBtn = document.getElementById('edit-last-btn');
+    if (editBtn) editBtn.addEventListener('click', editLastEntry);
+  }
+  renderEntryList();
+}
+
+// ─── Toggle tools ───
+document.getElementById('toggle-tools-btn').addEventListener('click', () => {
+  const panel = document.getElementById('tools-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+// ─── Edit last entry ───
+async function editLastEntry() {
+  if (entries.length === 0) return;
+  const last = entries[entries.length - 1];
+
+  document.getElementById('pseudo').value = last.pseudo;
+  document.querySelectorAll('.cause-field').forEach((f, i) => {
+    f.value = last.causes[i] || '';
+    document.getElementById('num-' + i).className = f.value.trim() ? 'cause-num filled' : 'cause-num';
+  });
+  updateCauseCount();
+
+  try { await apiDelete('/api/contributions/last'); } catch(e) { console.error(e); }
+  entries.pop();
+  updateWords();
+  renderRegistry();
+  renderCloud();
+  document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ─── Exports ───
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('export-json').addEventListener('click', () => {
+  downloadFile(JSON.stringify(entries, null, 2), `le47-contributions-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+});
+document.getElementById('export-csv').addEventListener('click', () => {
+  const header = 'id,pseudo,causes,date\n';
+  const rows = entries.map(e => `"${e.id}","${e.pseudo}","${e.causes.join('; ')}","${new Date(e.timestamp).toISOString()}"`).join('\n');
+  downloadFile('\uFEFF' + header + rows, `le47-contributions-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
+});
+
+// ─── Import merge ───
+document.getElementById('import-merge-btn').addEventListener('change', async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  try {
+    const imported = JSON.parse(text);
+    if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); return; }
+    const result = await apiPost('/api/import/merge', { entries: imported });
+    alert(`✅ ${result.added} nouvelle(s) contribution(s) ajoutée(s).\n${result.total} au total.`);
+    await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
+  } catch { alert('❌ Fichier JSON invalide.'); }
+  ev.target.value = '';
+});
+
+// ─── Import replace ───
+document.getElementById('import-replace-btn').addEventListener('change', async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  if (!confirm(`⚠️ ATTENTION\n\nCette action va SUPPRIMER les ${entries.length} contribution(s) actuelles et les remplacer.\n\nIrréversible. Continuer ?`)) {
+    ev.target.value = ''; return;
+  }
+  const text = await file.text();
+  try {
+    const imported = JSON.parse(text);
+    if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); return; }
+    const result = await apiPost('/api/import/replace', { entries: imported });
+    alert(`✅ Registre remplacé. ${result.total} contribution(s).`);
+    await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
+  } catch { alert('❌ Fichier JSON invalide.'); }
+  ev.target.value = '';
+});
+
+// ─── Word Cloud ───
+function renderCloud() {
+  const container = document.getElementById('word-cloud');
+  if (words.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">Aucune contribution pour l\'instant. Sois le·la premier·e !</p>';
+    return;
+  }
+
+  const maxW = Math.max(...words.map(w => w.weight));
+  const display = words.slice(0, 50);
+  const W = container.offsetWidth || 600;
+  const H = Math.max(450, display.length > 30 ? 550 : 450);
+  container.style.height = H + 'px';
+  container.innerHTML = '';
+
+  const placed = [];
+  display.forEach((w, i) => {
+    const ratio = w.weight / maxW;
+    const size = Math.round(16 + ratio * 40);
+    const color = HUES[i % HUES.length];
+    const fw = ratio > 0.5 ? 700 : 400;
+    const shadow = ratio > 0.6 ? `text-shadow: 0 0 20px ${color}40;` : '';
+    const opacity = 0.45 + ratio * 0.55;
+    const charW = size * 0.55;
+    const textW = w.word.length * charW;
+    const textH = size * 1.3;
+    const cx = W / 2, cy = H / 2;
+    let x = cx - textW/2, y = cy - textH/2;
+    let angle = Math.random() * Math.PI * 2, radius = 0, found = false;
+
+    for (let step = 0; step < 300; step++) {
+      x = cx + Math.cos(angle) * radius - textW/2;
+      y = cy + Math.sin(angle) * radius - textH/2;
+      if (x < 5 || x + textW > W - 5 || y < 5 || y + textH > H - 5) { angle += 0.5; radius += 2; continue; }
+      let overlap = false;
+      for (const p of placed) {
+        if (x < p.x+p.w+8 && x+textW+8 > p.x && y < p.y+p.h+4 && y+textH+4 > p.y) { overlap = true; break; }
+      }
+      if (!overlap) { found = true; break; }
+      angle += 0.4; radius += 3;
+    }
+    if (!found) return;
+    placed.push({ x, y, w: textW, h: textH });
+    const rot = (Math.random() - 0.5) * 12;
+    const isTheme = w.word.startsWith('⟨');
+    const span = document.createElement('span');
+    span.className = 'cloud-word';
+    span.textContent = w.word;
+    span.title = isTheme ? `Thématique regroupée: ${w.count} contributions` : `${w.word}: ${w.count} fois`;
+    span.style.cssText = `font-size:${size}px; font-weight:${fw}; color:${color}; opacity:${opacity}; ${shadow} left:${Math.round(x)}px; top:${Math.round(y)}px; transform:rotate(${rot.toFixed(1)}deg); ${isTheme ? 'border-bottom:1px dashed '+color+'; padding-bottom:2px;' : ''}`;
+    container.appendChild(span);
+  });
+  document.getElementById('export-cloud-img').style.display = '';
+}
+
+// ─── Export cloud as image ───
+document.getElementById('export-cloud-img').addEventListener('click', () => {
+  const container = document.getElementById('word-cloud');
+  const wordEls = container.querySelectorAll('.cloud-word');
+  if (wordEls.length === 0) return;
+  const scale = 2;
+  const W = container.offsetWidth, H = container.offsetHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = W*scale; canvas.height = H*scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#0a0e17'; ctx.fillRect(0, 0, W, H);
+  wordEls.forEach(el => {
+    const style = window.getComputedStyle(el);
+    const x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
+    const size = parseFloat(style.fontSize), color = style.color, weight = style.fontWeight;
+    const opacity = parseFloat(style.opacity)||1;
+    const rotMatch = (el.style.transform||'').match(/rotate\(([-\d.]+)deg\)/);
+    const rot = rotMatch ? parseFloat(rotMatch[1]) : 0;
+    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(x, y+size);
+    if (rot) { const tw=el.offsetWidth,th=el.offsetHeight; ctx.translate(tw/2,-th/2); ctx.rotate(rot*Math.PI/180); ctx.translate(-tw/2,th/2); }
+    ctx.font = `${weight} ${size}px 'Playfair Display', Georgia, serif`;
+    ctx.fillStyle = color; ctx.fillText(el.textContent, 0, 0); ctx.restore();
+  });
+  ctx.globalAlpha=0.3; ctx.font='12px "DM Sans",sans-serif'; ctx.fillStyle='#8899aa'; ctx.textAlign='right';
+  ctx.fillText('Le 47 — Nuage des Causes', W-15, H-12);
+  const link = document.createElement('a');
+  link.download = `le47-nuage-${new Date().toISOString().slice(0,10)}.png`;
+  link.href = canvas.toDataURL('image/png'); link.click();
+});
+
+// ─── Init ───
+(async () => {
+  await loadFromServer();
+  updateWords();
+  renderRegistry();
+  renderCloud();
+})();
+</script>
+</body>
+</html>
