@@ -490,6 +490,7 @@ async function editLastEntry() {
   if (entries.length === 0) return;
   const last = entries[entries.length - 1];
 
+  // Pre-fill form
   document.getElementById('pseudo').value = last.pseudo;
   document.querySelectorAll('.cause-field').forEach((f, i) => {
     f.value = last.causes[i] || '';
@@ -497,11 +498,23 @@ async function editLastEntry() {
   });
   updateCauseCount();
 
+  // Make sure the form is visible (not the thanks message)
+  document.getElementById('cause-form').style.display = 'block';
+  document.getElementById('thanks-msg').style.display = 'none';
+
+  // Switch to contribute tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="contribute"]').classList.add('active');
+  document.getElementById('tab-contribute').classList.add('active');
+
+  // Delete from server
   try { await apiDelete('/api/contributions/last'); } catch(e) { console.error(e); }
   entries.pop();
   updateWords();
   renderRegistry();
-  renderCloud();
+
+  // Scroll to form
   document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
