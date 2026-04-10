@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Render sets DATABASE_URL automatically when you link a PostgreSQL instance
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false,
+  ssl: process.env.RENDER ? { rejectUnauthorized: false } : false,
 });
 
 // ─── Database init ───
