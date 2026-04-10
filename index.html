@@ -136,18 +136,6 @@ footer p { font-size: 12px; color: var(--text-muted); }
 @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(232,197,71,0.25); border-radius: 3px; }
-.tag-input-wrap { position: relative; }
-.tag-dropdown {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
-  background: #1a1f2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
-  margin-top: 2px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-}
-.tag-option {
-  padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text);
-  transition: background 0.15s;
-}
-.tag-option:hover { background: rgba(255,255,255,0.08); }
-.tag-option.new-tag { color: var(--accent); font-style: italic; }
 </style>
 </head>
 <body>
@@ -163,7 +151,6 @@ footer p { font-size: 12px; color: var(--text-muted); }
 <nav id="tabs">
   <button class="tab-btn active" data-tab="contribute">✦ Contribuer</button>
   <button class="tab-btn" data-tab="cloud">☁ Nuage</button>
-  <button class="tab-btn" data-tab="mapping">⊞ Mapping</button>
 </nav>
 
 <div class="container" style="padding-bottom:60px;">
@@ -236,19 +223,6 @@ footer p { font-size: 12px; color: var(--text-muted); }
     </div>
   </div>
 
-  <!-- MAPPING -->
-  <div class="tab-content" id="tab-mapping">
-    <div class="card">
-      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--lavender); margin-bottom:6px;">Mapping des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage.</p>
-      <div style="margin-bottom:16px;">
-        <input class="field" id="mapping-filter" placeholder="Rechercher une cause ou un pseudo…">
-      </div>
-      <div id="mapping-list" style="max-height:480px; overflow-y:auto;"></div>
-      <div id="mapping-pagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px;"></div>
-    </div>
-  </div>
-
 </div>
 
 <footer><p>Le 47 — Espace d'une communauté d'acteurs engagés · Raison d'être évolutive</p></footer>
@@ -265,11 +239,6 @@ const PLACEHOLDERS = ['Solidarité','Transition écologique','Art vivant','Bien 
 
 let entries = [];
 let words = [];
-let allWords = [];
-let allCauses = [];
-let causeTagsMap = {};
-let allTags = [];
-let cloudRotationInterval = null;
 
 // ─── API helpers ───
 async function apiGet(path) {
@@ -291,41 +260,20 @@ async function apiDelete(path) {
 // ─── Load all data from server ───
 async function loadFromServer() {
   try {
-    [entries, allCauses] = await Promise.all([
-      apiGet('/api/contributions'),
-      apiGet('/api/causes'),
-    ]);
-    causeTagsMap = {};
-    const tagSet = new Set();
-    allCauses.forEach(c => {
-      if (c.tag) {
-        causeTagsMap[`${c.contributionId}-${c.causeIndex}`] = c.tag;
-        tagSet.add(c.tag);
-      }
-    });
-    allTags = [...tagSet].sort();
+    entries = await apiGet('/api/contributions');
   } catch (e) {
     console.error('Erreur chargement:', e);
     entries = [];
-    allCauses = [];
   }
 }
 
 // ─── Tabs ───
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (cloudRotationInterval && btn.dataset.tab !== 'cloud') {
-      clearInterval(cloudRotationInterval);
-      cloudRotationInterval = null;
-    }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'cloud' && allWords.length > 50 && !cloudRotationInterval) {
-      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
-    }
-    if (btn.dataset.tab === 'mapping') renderMapping();
   });
 });
 
@@ -441,42 +389,33 @@ function updateWords() {
   entries.forEach(entry => {
     const age = (now - entry.timestamp) / (1000*60*60*24);
     const recency = Math.max(0.2, 1 / (1 + age * 0.05));
-    entry.causes.forEach((cause, idx) => {
+    entry.causes.forEach(cause => {
       const original = cause.trim();
       if (original.length < 2) return;
-      const tag = causeTagsMap[`${entry.id}-${idx}`];
-      if (tag) {
-        const key = 'tag:' + tag.trim().toLowerCase();
-        if (!causeMap[key]) causeMap[key] = { count: 0, weight: 0, isTag: true, tagDisplay: tag.trim() };
-        causeMap[key].count += 1;
-        causeMap[key].weight += recency;
-      } else {
-        const key = normalize(original);
-        if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0, isTag: false }; displayForms[key] = {}; }
-        causeMap[key].count += 1;
-        causeMap[key].weight += recency;
-        displayForms[key][original] = (displayForms[key][original] || 0) + 1;
-      }
+      const key = normalize(original);
+      if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0 }; displayForms[key] = {}; }
+      causeMap[key].count += 1;
+      causeMap[key].weight += recency;
+      displayForms[key][original] = (displayForms[key][original] || 0) + 1;
     });
   });
 
-  const mapped = Object.entries(causeMap)
-    .map(([key, {count, weight, isTag, tagDisplay}]) => {
-      const word = isTag ? tagDisplay :
-        (Object.keys(displayForms[key] || {}).sort((a, b) => a.length - b.length)[0] || key);
-      return { word, key, count, weight };
+  let allWords = Object.entries(causeMap)
+    .map(([key, {count, weight}]) => {
+      const forms = Object.keys(displayForms[key]);
+      const bestForm = forms.sort((a, b) => a.length - b.length)[0];
+      return { word: bestForm, key, count, weight };
     })
     .sort((a, b) => b.weight - a.weight);
 
-  if (mapped.length <= 50) { allWords = mapped; words = allWords; return; }
+  if (allWords.length <= 50) { words = allWords; return; }
 
-  const top = mapped.slice(0, 40);
-  const rest = mapped.slice(40);
+  const top = allWords.slice(0, 40);
+  const rest = allWords.slice(40);
   const themeGroups = {};
   const ungrouped = [];
 
   rest.forEach(w => {
-    if (w.key.startsWith('tag:')) { ungrouped.push(w); return; }
     const theme = findTheme(w.word);
     if (theme) {
       if (!themeGroups[theme]) themeGroups[theme] = { count: 0, weight: 0 };
@@ -491,8 +430,10 @@ function updateWords() {
     .map(([theme, {count, weight}]) => ({ word: '⟨ ' + theme + ' ⟩', key: theme, count, weight }))
     .sort((a, b) => b.weight - a.weight);
 
-  allWords = [...top, ...themeEntries, ...ungrouped].sort((a, b) => b.weight - a.weight);
-  words = allWords.slice(0, 50);
+  const remaining = 50 - top.length - themeEntries.length;
+  const extra = remaining > 0 ? ungrouped.slice(0, remaining) : [];
+
+  words = [...top, ...themeEntries, ...extra].sort((a, b) => b.weight - a.weight).slice(0, 50);
 }
 
 // ─── Render registry ───
@@ -655,39 +596,15 @@ document.getElementById('delete-all-btn').addEventListener('click', async () => 
 });
 
 // ─── Word Cloud ───
-function shuffleArray(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getCloudWordSet() {
-  if (allWords.length <= 50) return allWords;
-  const top = allWords.slice(0, 15);
-  const rest = shuffleArray(allWords.slice(15));
-  return [...top, ...rest].slice(0, 50);
-}
-
 function renderCloud() {
-  if (cloudRotationInterval) { clearInterval(cloudRotationInterval); cloudRotationInterval = null; }
   const container = document.getElementById('word-cloud');
-  if (allWords.length === 0) {
+  if (words.length === 0) {
     container.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">Aucune contribution pour l\'instant. Sois le·la premier·e !</p>';
-    document.getElementById('export-cloud-img').style.display = 'none';
     return;
   }
-  doRenderCloud(getCloudWordSet());
-  if (allWords.length > 50) {
-    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
-  }
-}
 
-function doRenderCloud(display) {
-  const container = document.getElementById('word-cloud');
-  const maxW = Math.max(...display.map(w => w.weight));
+  const maxW = Math.max(...words.map(w => w.weight));
+  const display = words.slice(0, 50);
   const W = container.offsetWidth || 600;
   const isMobile = W < 500;
   const maxFontSize = isMobile ? 26 : 40;
@@ -740,7 +657,7 @@ function doRenderCloud(display) {
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (allWords.length > 0) renderCloud(); }, 300);
+  resizeTimer = setTimeout(() => { if (words.length > 0) renderCloud(); }, 300);
 });
 
 // ─── Export cloud as image ───
@@ -773,154 +690,6 @@ document.getElementById('export-cloud-img').addEventListener('click', () => {
   link.download = `le47-nuage-${new Date().toISOString().slice(0,10)}.png`;
   link.href = canvas.toDataURL('image/png'); link.click();
 });
-
-// ─── Mapping ───
-let mappingPage = 0;
-const MAPPING_PAGE_SIZE = 10;
-let mappingFilter = '';
-let mappingCauses = [];
-
-document.getElementById('mapping-filter').addEventListener('input', e => {
-  mappingFilter = e.target.value;
-  renderMapping();
-});
-
-function renderMapping() {
-  mappingCauses = allCauses.filter(c => {
-    if (!mappingFilter) return true;
-    const q = mappingFilter.toLowerCase();
-    return c.cause.toLowerCase().includes(q) || c.pseudo.toLowerCase().includes(q);
-  });
-  mappingPage = 0;
-  renderMappingPage();
-}
-
-function renderMappingPage() {
-  const list = document.getElementById('mapping-list');
-  const pagination = document.getElementById('mapping-pagination');
-
-  if (mappingCauses.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted); font-style:italic; font-size:13px; padding:20px 0; text-align:center;">Aucune cause trouvée.</p>';
-    pagination.innerHTML = '';
-    return;
-  }
-
-  const start = mappingPage * MAPPING_PAGE_SIZE;
-  const pageCauses = mappingCauses.slice(start, start + MAPPING_PAGE_SIZE);
-  const totalPages = Math.ceil(mappingCauses.length / MAPPING_PAGE_SIZE);
-
-  list.innerHTML = pageCauses.map(c => {
-    const tagVal = causeTagsMap[`${c.contributionId}-${c.causeIndex}`] || '';
-    return `<div class="entry-row" style="flex-wrap:nowrap; align-items:center; gap:10px;">
-      <div style="flex:1; min-width:0; overflow:hidden;">
-        <span class="entry-pseudo" style="font-size:13px;">${esc(c.pseudo)}</span>
-        <span style="color:var(--text); font-size:14px; margin-left:8px;">${esc(c.cause)}</span>
-      </div>
-      <div class="tag-input-wrap" style="flex-shrink:0; width:160px;">
-        <input class="field mapping-tag-input" style="font-size:13px; padding:7px 10px;"
-          placeholder="Tag…" value="${esc(tagVal)}" autocomplete="off"
-          data-contribution-id="${c.contributionId}" data-cause-index="${c.causeIndex}">
-      </div>
-    </div>`;
-  }).join('');
-
-  // Tag autocomplete + save on each input
-  list.querySelectorAll('.mapping-tag-input').forEach(input => {
-    let dropdown = null;
-
-    function removeDropdown() {
-      if (dropdown) { dropdown.remove(); dropdown = null; }
-    }
-
-    function showDropdown(val) {
-      removeDropdown();
-      const matches = allTags.filter(t => t.toLowerCase().includes(val.toLowerCase()) && t !== val.trim());
-      const hasNew = val.trim() && !allTags.includes(val.trim());
-      if (matches.length === 0 && !hasNew) return;
-      dropdown = document.createElement('div');
-      dropdown.className = 'tag-dropdown';
-      matches.slice(0, 6).forEach(tag => {
-        const opt = document.createElement('div');
-        opt.className = 'tag-option';
-        opt.textContent = tag;
-        opt.addEventListener('mousedown', e => {
-          e.preventDefault();
-          input.value = tag;
-          saveTag(input);
-          removeDropdown();
-        });
-        dropdown.appendChild(opt);
-      });
-      if (hasNew) {
-        const newOpt = document.createElement('div');
-        newOpt.className = 'tag-option new-tag';
-        newOpt.textContent = `+ Créer "${val.trim()}"`;
-        newOpt.addEventListener('mousedown', e => {
-          e.preventDefault();
-          input.value = val.trim();
-          saveTag(input);
-          removeDropdown();
-        });
-        dropdown.appendChild(newOpt);
-      }
-      input.parentElement.appendChild(dropdown);
-    }
-
-    input.addEventListener('input', () => showDropdown(input.value));
-    input.addEventListener('focus', () => showDropdown(input.value));
-    input.addEventListener('blur', () => { setTimeout(removeDropdown, 150); saveTag(input); });
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { saveTag(input); removeDropdown(); input.blur(); }
-      if (e.key === 'Escape') { removeDropdown(); input.blur(); }
-    });
-  });
-
-  // Pagination
-  pagination.innerHTML = '';
-  if (totalPages <= 1) return;
-  if (mappingPage > 0) {
-    const prev = document.createElement('button');
-    prev.className = 'btn-sm';
-    prev.style.cssText = 'background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted);';
-    prev.textContent = '← Préc.';
-    prev.addEventListener('click', () => { mappingPage--; renderMappingPage(); });
-    pagination.appendChild(prev);
-  }
-  const info = document.createElement('span');
-  info.style.cssText = 'font-size:12px; color:var(--text-muted); padding:8px 12px;';
-  info.textContent = `${mappingPage + 1} / ${totalPages} — ${mappingCauses.length} causes`;
-  pagination.appendChild(info);
-  if (mappingPage < totalPages - 1) {
-    const next = document.createElement('button');
-    next.className = 'btn-sm';
-    next.style.cssText = 'background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted);';
-    next.textContent = 'Suiv. →';
-    next.addEventListener('click', () => { mappingPage++; renderMappingPage(); });
-    pagination.appendChild(next);
-  }
-}
-
-async function saveTag(input) {
-  const contributionId = input.dataset.contributionId;
-  const causeIndex = parseInt(input.dataset.causeIndex);
-  const tag = input.value.trim();
-  const mapKey = `${contributionId}-${causeIndex}`;
-  try {
-    await apiPost('/api/causes/tag', { contributionId, causeIndex, tag });
-    if (tag) {
-      causeTagsMap[mapKey] = tag;
-      if (!allTags.includes(tag)) { allTags.push(tag); allTags.sort(); }
-    } else {
-      delete causeTagsMap[mapKey];
-    }
-    const causeEntry = allCauses.find(c => c.contributionId === contributionId && c.causeIndex === causeIndex);
-    if (causeEntry) causeEntry.tag = tag || null;
-    updateWords();
-    renderCloud();
-  } catch(e) {
-    console.error('Erreur saveTag:', e);
-  }
-}
 
 // ─── Init ───
 (async () => {
