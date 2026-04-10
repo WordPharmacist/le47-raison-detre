@@ -1,3 +1,4 @@
+require('dotenv').config(); // charge .env en local, ignoré sur Render
 const express = require('express');
 const { Pool } = require('pg');
 const crypto = require('crypto');
@@ -10,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Render sets DATABASE_URL automatically when you link a PostgreSQL instance
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: false,
 });
 
 // ─── Database init ───
