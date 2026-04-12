@@ -323,7 +323,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'cloud' && allWords.length > 50 && !cloudRotationInterval) {
-      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
+      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
     }
     if (btn.dataset.tab === 'mapping') renderMapping();
   });
@@ -690,7 +690,7 @@ function renderCloud() {
   }
   doRenderCloud(getCloudWordSet());
   if (allWords.length > 50) {
-    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
+    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
   }
 }
 
