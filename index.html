@@ -221,7 +221,7 @@ footer p { font-size: 12px; color: var(--text-muted); }
   <div class="tab-content" id="tab-cloud">
     <div class="card" style="text-align:center; min-height:300px;">
       <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--ice); margin-bottom:6px;">Le Nuage des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">Les causes les plus récentes et fréquentes apparaissent plus grandes.</p>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">Découvre et Contribue aux causes qui font vivre la communauté</p>
       <div class="cloud-wrap" id="word-cloud">
         <p style="color:var(--text-muted); font-style:italic; padding:40px 0;">Chargement…</p>
       </div>
@@ -240,7 +240,7 @@ footer p { font-size: 12px; color: var(--text-muted); }
   <div class="tab-content" id="tab-mapping">
     <div class="card">
       <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--lavender); margin-bottom:6px;">Mapping des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage.</p>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.<br><span style="font-size:12px; opacity:0.7;">Intendance du site&nbsp;: Adrien Tardif</span></p>
       <div style="margin-bottom:16px;">
         <input class="field" id="mapping-filter" placeholder="Rechercher une cause ou un pseudo…">
       </div>
@@ -323,7 +323,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'cloud' && allWords.length > 50 && !cloudRotationInterval) {
-      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
+      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
     }
     if (btn.dataset.tab === 'mapping') renderMapping();
   });
@@ -451,11 +451,20 @@ function updateWords() {
         causeMap[key].count += 1;
         causeMap[key].weight += recency;
       } else {
-        const key = normalize(original);
-        if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0, isTag: false }; displayForms[key] = {}; }
-        causeMap[key].count += 1;
-        causeMap[key].weight += recency;
-        displayForms[key][original] = (displayForms[key][original] || 0) + 1;
+        const normOriginal = normalize(original);
+        const matchingTag = allTags.find(t => normalize(t) === normOriginal);
+        if (matchingTag) {
+          const tagKey = 'tag:' + matchingTag.trim().toLowerCase();
+          if (!causeMap[tagKey]) causeMap[tagKey] = { count: 0, weight: 0, isTag: true, tagDisplay: matchingTag.trim() };
+          causeMap[tagKey].count += 1;
+          causeMap[tagKey].weight += recency;
+        } else {
+          const key = normOriginal;
+          if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0, isTag: false }; displayForms[key] = {}; }
+          causeMap[key].count += 1;
+          causeMap[key].weight += recency;
+          displayForms[key][original] = (displayForms[key][original] || 0) + 1;
+        }
       }
     });
   });
@@ -681,7 +690,7 @@ function renderCloud() {
   }
   doRenderCloud(getCloudWordSet());
   if (allWords.length > 50) {
-    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 6000);
+    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
   }
 }
 
@@ -790,7 +799,7 @@ function renderMapping() {
     if (!mappingFilter) return true;
     const q = mappingFilter.toLowerCase();
     return c.cause.toLowerCase().includes(q) || c.pseudo.toLowerCase().includes(q);
-  });
+  }).sort((a, b) => b.timestamp - a.timestamp);
   mappingPage = 0;
   renderMappingPage();
 }
@@ -811,15 +820,18 @@ function renderMappingPage() {
 
   list.innerHTML = pageCauses.map(c => {
     const tagVal = causeTagsMap[`${c.contributionId}-${c.causeIndex}`] || '';
+    const dateStr = new Date(c.timestamp).toLocaleDateString('fr-FR');
     return `<div class="entry-row" style="flex-wrap:nowrap; align-items:center; gap:10px;">
       <div style="flex:1; min-width:0; overflow:hidden;">
         <span class="entry-pseudo" style="font-size:13px;">${esc(c.pseudo)}</span>
-        <span style="color:var(--text); font-size:14px; margin-left:8px;">${esc(c.cause)}</span>
+        <span class="entry-date" style="margin-left:6px;">${dateStr}</span>
+        <span style="color:var(--text); font-size:14px; margin-left:8px; display:block; margin-top:2px;">${esc(c.cause)}</span>
       </div>
-      <div class="tag-input-wrap" style="flex-shrink:0; width:160px;">
-        <input class="field mapping-tag-input" style="font-size:13px; padding:7px 10px;"
+      <div class="tag-input-wrap" style="flex-shrink:0; width:160px; display:flex; align-items:center; gap:0;">
+        <input class="field mapping-tag-input" style="font-size:13px; padding:7px 10px; flex:1; border-radius:8px 0 0 8px; border-right:none;"
           placeholder="Tag…" value="${esc(tagVal)}" autocomplete="off"
           data-contribution-id="${c.contributionId}" data-cause-index="${c.causeIndex}">
+        <button class="tag-toggle-btn" type="button" style="height:100%; padding:0 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); border-left:none; border-radius:0 8px 8px 0; color:var(--text-muted); cursor:pointer; font-size:11px;" tabindex="-1">▾</button>
       </div>
     </div>`;
   }).join('');
@@ -873,6 +885,14 @@ function renderMappingPage() {
       if (e.key === 'Enter') { saveTag(input); removeDropdown(); input.blur(); }
       if (e.key === 'Escape') { removeDropdown(); input.blur(); }
     });
+
+    const toggleBtn = input.parentElement.querySelector('.tag-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        if (dropdown) { removeDropdown(); } else { input.focus(); showDropdown(''); }
+      });
+    }
   });
 
   // Pagination
