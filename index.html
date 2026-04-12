@@ -240,12 +240,15 @@ footer p { font-size: 12px; color: var(--text-muted); }
   <div class="tab-content" id="tab-mapping">
     <div class="card">
       <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--lavender); margin-bottom:6px;">Mapping des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.</p>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.<br><span style="font-size:12px; opacity:0.7;">Intendance du site&nbsp;: Adrien Tardif</span></p>
       <div style="margin-bottom:16px;">
         <input class="field" id="mapping-filter" placeholder="Rechercher une cause ou un pseudo…">
       </div>
       <div id="mapping-list" style="max-height:480px; overflow-y:auto;"></div>
       <div id="mapping-pagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px;"></div>
+      <div style="margin-top:16px; text-align:center;">
+        <button id="refresh-cloud-btn" class="btn-sm" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:13px; padding:8px 20px;">☁ Mettre à jour le nuage</button>
+      </div>
     </div>
   </div>
 
@@ -775,6 +778,17 @@ document.getElementById('export-cloud-img').addEventListener('click', () => {
 });
 
 // ─── Mapping ───
+document.getElementById('refresh-cloud-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('refresh-cloud-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Mise à jour…';
+  await loadFromServer();
+  updateWords();
+  renderCloud();
+  btn.disabled = false;
+  btn.textContent = '☁ Mettre à jour le nuage';
+});
+
 let mappingPage = 0;
 const MAPPING_PAGE_SIZE = 10;
 let mappingFilter = '';
