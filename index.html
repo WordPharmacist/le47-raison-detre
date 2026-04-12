@@ -274,6 +274,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+    if (btn.dataset.tab === 'cloud' && allWords.length > 50 && !cloudRotationInterval) {
+      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
+    }
+    if (btn.dataset.tab === 'mapping') renderMapping();
   });
 });
 
@@ -602,6 +607,12 @@ function renderCloud() {
     container.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">Aucune contribution pour l\'instant. Sois le·la premier·e !</p>';
     return;
   }
+
+  doRenderCloud(getCloudWordSet());
+  if (allWords.length > 50) {
+    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
+  }
+}
 
   const maxW = Math.max(...words.map(w => w.weight));
   const display = words.slice(0, 50);
