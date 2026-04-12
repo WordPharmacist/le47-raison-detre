@@ -246,9 +246,6 @@ footer p { font-size: 12px; color: var(--text-muted); }
       </div>
       <div id="mapping-list" style="max-height:480px; overflow-y:auto;"></div>
       <div id="mapping-pagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px;"></div>
-      <div style="margin-top:16px; text-align:center;">
-        <button id="refresh-cloud-btn" class="btn-sm" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:13px; padding:8px 20px;">☁ Mettre à jour le nuage</button>
-      </div>
     </div>
   </div>
 
@@ -454,11 +451,20 @@ function updateWords() {
         causeMap[key].count += 1;
         causeMap[key].weight += recency;
       } else {
-        const key = normalize(original);
-        if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0, isTag: false }; displayForms[key] = {}; }
-        causeMap[key].count += 1;
-        causeMap[key].weight += recency;
-        displayForms[key][original] = (displayForms[key][original] || 0) + 1;
+        const normOriginal = normalize(original);
+        const matchingTag = allTags.find(t => normalize(t) === normOriginal);
+        if (matchingTag) {
+          const tagKey = 'tag:' + matchingTag.trim().toLowerCase();
+          if (!causeMap[tagKey]) causeMap[tagKey] = { count: 0, weight: 0, isTag: true, tagDisplay: matchingTag.trim() };
+          causeMap[tagKey].count += 1;
+          causeMap[tagKey].weight += recency;
+        } else {
+          const key = normOriginal;
+          if (!causeMap[key]) { causeMap[key] = { count: 0, weight: 0, isTag: false }; displayForms[key] = {}; }
+          causeMap[key].count += 1;
+          causeMap[key].weight += recency;
+          displayForms[key][original] = (displayForms[key][original] || 0) + 1;
+        }
       }
     });
   });
@@ -778,17 +784,6 @@ document.getElementById('export-cloud-img').addEventListener('click', () => {
 });
 
 // ─── Mapping ───
-document.getElementById('refresh-cloud-btn').addEventListener('click', async () => {
-  const btn = document.getElementById('refresh-cloud-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Mise à jour…';
-  await loadFromServer();
-  updateWords();
-  renderCloud();
-  btn.disabled = false;
-  btn.textContent = '☁ Mettre à jour le nuage';
-});
-
 let mappingPage = 0;
 const MAPPING_PAGE_SIZE = 10;
 let mappingFilter = '';
