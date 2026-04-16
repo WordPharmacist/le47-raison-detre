@@ -225,7 +225,10 @@ footer p { font-size: 12px; color: var(--text-muted); }
       <div class="cloud-wrap" id="word-cloud">
         <p style="color:var(--text-muted); font-style:italic; padding:40px 0;">Chargement…</p>
       </div>
-      <button id="export-cloud-img" class="btn-sm" style="margin-top:16px; background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice); display:none;">📷 Exporter le nuage en image</button>
+      <div id="export-cloud-btns" style="display:none; margin-top:16px; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button id="export-cloud-img" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">📷 Exporter cette photo du nuage (PNG)</button>
+        <button id="export-cloud-svg" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">✦ Exporter le nuage en entier (SVG)</button>
+      </div>
     </div>
 
     <div style="margin-top:30px; padding:28px 20px; text-align:center; background:linear-gradient(135deg, var(--ocean-dark), var(--ocean)); border-radius:14px; border:1px solid rgba(59,105,120,0.25);">
@@ -270,6 +273,8 @@ let allCauses = [];
 let causeTagsMap = {};
 let allTags = [];
 let cloudRotationInterval = null;
+let cloudQueue = [];
+let cloudQueuePoolSize = 0;
 
 // ─── API helpers ───
 async function apiGet(path) {
@@ -285,6 +290,7 @@ async function apiPost(path, body) {
 }
 async function apiDelete(path) {
   const res = await fetch(API + path, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
@@ -409,28 +415,6 @@ function normalize(str) {
 }
 
 // ─── Thematic keywords ───
-const THEMES = {
-  'solidarité': ['solidarité','entraide','partage','don','générosité','aide','soutien','bénévolat','fraternité','hospitalité','accueil','inclusion','accessibilité','égalité','diversité','justice sociale','équité'],
-  'écologie': ['écologie','environnement','climat','transition','sobriété','nature','biodiversité','durable','recyclage','énergie','permaculture','décroissance','résilience','planète','terre','gaia','bio','végétal'],
-  'éducation': ['éducation','apprentissage','formation','transmission','savoir','connaissance','pédagogie','enseignement','école','apprendre','mentor','compétence','culture','lecture','littérature'],
-  'art & création': ['art','création','musique','danse','théâtre','peinture','sculpture','photo','cinéma','écriture','poésie','design','artisanat','imaginaire','esthétique','beauté','créativité'],
-  'bien-être': ['bien-être','santé','méditation','yoga','pleine conscience','soin','repos','équilibre','corps','esprit','bonheur','joie','amour','paix','sérénité','zen','respiration'],
-  'technologie': ['technologie','numérique','données','code','innovation','intelligence artificielle','ia','open source','logiciel','internet','web','digital','tech','algorithme','robotique'],
-  'gouvernance': ['gouvernance','démocratie','autogestion','collectif','commun','politique','citoyen','vote','assemblée','participation','pouvoir','décision','horizontalité','coopération','transparence'],
-  'entrepreneuriat': ['entrepreneuriat','entreprise','impact','social','économie','travail','projet','startup','coopérative','ess','finance','valeur','business','management','leadership'],
-  'lien social': ['lien','communauté','rencontre','réseau','vivre ensemble','convivialité','fête','repas','voisinage','quartier','local','territoire','lieu','espace','habitat','cohabitation'],
-};
-
-function findTheme(word) {
-  const low = stripAccents(word.toLowerCase());
-  for (const [theme, keywords] of Object.entries(THEMES)) {
-    for (const kw of keywords) {
-      const kwNorm = stripAccents(kw);
-      if (low.includes(kwNorm) || kwNorm.includes(low)) return theme;
-    }
-  }
-  return null;
-}
 
 // ─── Word weights ───
 function updateWords() {
@@ -477,30 +461,7 @@ function updateWords() {
     })
     .sort((a, b) => b.weight - a.weight);
 
-  if (mapped.length <= 50) { allWords = mapped; words = allWords; return; }
-
-  const top = mapped.slice(0, 40);
-  const rest = mapped.slice(40);
-  const themeGroups = {};
-  const ungrouped = [];
-
-  rest.forEach(w => {
-    if (w.key.startsWith('tag:')) { ungrouped.push(w); return; }
-    const theme = findTheme(w.word);
-    if (theme) {
-      if (!themeGroups[theme]) themeGroups[theme] = { count: 0, weight: 0 };
-      themeGroups[theme].count += w.count;
-      themeGroups[theme].weight += w.weight;
-    } else { ungrouped.push(w); }
-  });
-
-  const topWords = new Set(top.map(w => w.word.toLowerCase()));
-  const themeEntries = Object.entries(themeGroups)
-    .filter(([theme]) => !topWords.has(theme))
-    .map(([theme, {count, weight}]) => ({ word: '⟨ ' + theme + ' ⟩', key: theme, count, weight }))
-    .sort((a, b) => b.weight - a.weight);
-
-  allWords = [...top, ...themeEntries, ...ungrouped].sort((a, b) => b.weight - a.weight);
+  allWords = mapped;
   words = allWords.slice(0, 50);
 }
 
@@ -523,10 +484,11 @@ function renderRegistry() {
     const visible = showAll ? reversed : reversed.slice(0, 5);
     list.innerHTML = visible.map(e => {
       const isLast = e.id === lastId;
-      return `<div class="entry-row" ${isLast ? 'id="last-entry-row"' : ''}>
+      return `<div class="entry-row" ${isLast ? 'id="last-entry-row"' : ''} data-id="${esc(e.id)}" data-pseudo="${esc(e.pseudo)}">
         <div><span class="entry-pseudo">${esc(e.pseudo)}</span><span class="entry-causes">${e.causes.map(esc).join(' · ')}</span></div>
         <div style="display:flex; align-items:center; gap:8px;">
           ${isLast ? '<button class="btn-sm" id="edit-last-btn" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:11px; padding:5px 12px;">✎ Modifier</button>' : ''}
+          <button class="btn-sm btn-delete-entry" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.12); color:var(--text-muted); font-size:11px; padding:5px 10px;">✕ Supprimer</button>
           <span class="entry-date">${new Date(e.timestamp).toLocaleDateString('fr-FR')}</span>
         </div>
       </div>`;
@@ -543,6 +505,28 @@ function renderRegistry() {
 
     const editBtn = document.getElementById('edit-last-btn');
     if (editBtn) editBtn.addEventListener('click', editLastEntry);
+
+    list.querySelectorAll('.btn-delete-entry').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('.entry-row');
+        const id = row.dataset.id;
+        const pseudo = row.dataset.pseudo;
+        const confirmation = prompt(
+          `Tu es sur le point de supprimer les causes de ${pseudo}, est-ce bien toi ?\nSinon, as-tu recueilli le consentement ?\n\nPour confirmer, tape exactement :\nsupprimer les causes`
+        );
+        if (confirmation === null) return;
+        if (confirmation !== 'supprimer les causes') {
+          alert('Suppression annulée : la phrase saisie ne correspond pas.');
+          return;
+        }
+        apiDelete(`/api/contributions/${id}`)
+          .then(() => {
+            entries = entries.filter(e => e.id !== id);
+            renderRegistry();
+          })
+          .catch(() => alert('Erreur lors de la suppression.'));
+      });
+    });
   }
   renderEntryList();
 }
@@ -607,6 +591,30 @@ document.getElementById('export-csv').addEventListener('click', () => {
   downloadFile('\uFEFF' + header + rows, `le47-contributions-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
 });
 
+// ─── Admin password gate ───
+function checkAdminPassword() {
+  const pwd = prompt('🔒 Accès administrateur\n\nMot de passe :');
+  if (pwd === null) return false;
+  if (pwd !== '479210$') { alert('❌ Mot de passe incorrect.'); return false; }
+  return true;
+}
+
+const _mergeInput = document.getElementById('import-merge-btn');
+_mergeInput.closest('label').addEventListener('click', (e) => {
+  if (e.target === _mergeInput) return;
+  e.preventDefault();
+  if (!checkAdminPassword()) return;
+  _mergeInput.click();
+});
+
+const _replaceInput = document.getElementById('import-replace-btn');
+_replaceInput.closest('label').addEventListener('click', (e) => {
+  if (e.target === _replaceInput) return;
+  e.preventDefault();
+  if (!checkAdminPassword()) return;
+  _replaceInput.click();
+});
+
 // ─── Import merge ───
 document.getElementById('import-merge-btn').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
@@ -643,6 +651,7 @@ document.getElementById('import-replace-btn').addEventListener('change', async (
 // ─── Delete all ───
 document.getElementById('delete-all-btn').addEventListener('click', async () => {
   if (entries.length === 0) { alert('Le registre est déjà vide.'); return; }
+  if (!checkAdminPassword()) return;
   const input = prompt(
     `⚠️ ATTENTION — ACTION IRRÉVERSIBLE\n\nCette action va supprimer définitivement les ${entries.length} contribution(s) du registre.\n\nPour confirmer, tape exactement :\nsupprimer le registre`
   );
@@ -676,8 +685,20 @@ function shuffleArray(arr) {
 function getCloudWordSet() {
   if (allWords.length <= 50) return allWords;
   const top = allWords.slice(0, 15);
-  const rest = shuffleArray(allWords.slice(15));
-  return [...top, ...rest].slice(0, 50);
+  const pool = allWords.slice(15);
+
+  // Réinitialise la file si la taille du pool a changé (nouvelles contributions)
+  if (cloudQueuePoolSize !== pool.length) {
+    cloudQueue = [];
+    cloudQueuePoolSize = pool.length;
+  }
+
+  // Recharge la file quand elle est épuisée
+  if (cloudQueue.length < 35) {
+    cloudQueue = [...cloudQueue, ...shuffleArray(pool.slice())];
+  }
+
+  return [...top, ...cloudQueue.splice(0, 35)];
 }
 
 function renderCloud() {
@@ -685,7 +706,7 @@ function renderCloud() {
   const container = document.getElementById('word-cloud');
   if (allWords.length === 0) {
     container.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">Aucune contribution pour l\'instant. Sois le·la premier·e !</p>';
-    document.getElementById('export-cloud-img').style.display = 'none';
+    document.getElementById('export-cloud-btns').style.display = 'none';
     return;
   }
   doRenderCloud(getCloudWordSet());
@@ -734,15 +755,14 @@ function doRenderCloud(display) {
     if (!found) return;
     placed.push({ x, y, w: textW, h: textH });
     const rot = isMobile ? (Math.random() - 0.5) * 8 : (Math.random() - 0.5) * 12;
-    const isTheme = w.word.startsWith('⟨');
     const span = document.createElement('span');
     span.className = 'cloud-word';
     span.textContent = w.word;
-    span.title = isTheme ? `Thématique regroupée: ${w.count} contributions` : `${w.word}: ${w.count} fois`;
-    span.style.cssText = `font-size:${size}px; font-weight:${fw}; color:${color}; opacity:${opacity}; ${shadow} left:${Math.round(x)}px; top:${Math.round(y)}px; transform:rotate(${rot.toFixed(1)}deg); max-width:${W - 10}px; overflow:hidden; text-overflow:ellipsis; ${isTheme ? 'border-bottom:1px dashed '+color+'; padding-bottom:2px;' : ''}`;
+    span.title = `${w.word}: ${w.count} fois`;
+    span.style.cssText = `font-size:${size}px; font-weight:${fw}; color:${color}; opacity:${opacity}; ${shadow} left:${Math.round(x)}px; top:${Math.round(y)}px; transform:rotate(${rot.toFixed(1)}deg); max-width:${W - 10}px; overflow:hidden; text-overflow:ellipsis;`;
     container.appendChild(span);
   });
-  document.getElementById('export-cloud-img').style.display = '';
+  document.getElementById('export-cloud-btns').style.display = 'flex';
 }
 
 // Re-render cloud on window resize
@@ -781,6 +801,64 @@ document.getElementById('export-cloud-img').addEventListener('click', () => {
   const link = document.createElement('a');
   link.download = `le47-nuage-${new Date().toISOString().slice(0,10)}.png`;
   link.href = canvas.toDataURL('image/png'); link.click();
+});
+
+// ─── Export cloud as SVG (all words) ───
+document.getElementById('export-cloud-svg').addEventListener('click', () => {
+  if (allWords.length === 0) return;
+  const display = allWords;
+  const maxW = Math.max(...display.map(w => w.weight));
+  const W = 1400;
+  const maxFontSize = 48;
+  const minFontSize = 14;
+  const H = Math.max(700, Math.ceil(display.length / 5) * 60);
+  const placed = [];
+  const texts = [];
+
+  display.forEach((w, i) => {
+    const ratio = w.weight / maxW;
+    const size = Math.round(minFontSize + ratio * (maxFontSize - minFontSize));
+    const color = HUES[i % HUES.length];
+    const fw = ratio > 0.5 ? 700 : 400;
+    const opacity = 0.45 + ratio * 0.55;
+    const charW = size * 0.55;
+    const textW = Math.min(w.word.length * charW, W - 20);
+    const textH = size * 1.3;
+    const cx = W / 2, cy = H / 2;
+    let x = cx - textW / 2, y = cy - textH / 2;
+    let angle = Math.random() * Math.PI * 2, radius = 0, found = false;
+
+    for (let step = 0; step < 600; step++) {
+      x = cx + Math.cos(angle) * radius - textW / 2;
+      y = cy + Math.sin(angle) * radius - textH / 2;
+      if (x < 2 || x + textW > W - 2 || y < 2 || y + textH > H - 2) { angle += 0.5; radius += 1.5; continue; }
+      let overlap = false;
+      for (const p of placed) {
+        if (x < p.x+p.w+6 && x+textW+6 > p.x && y < p.y+p.h+3 && y+textH+3 > p.y) { overlap = true; break; }
+      }
+      if (!overlap) { found = true; break; }
+      angle += 0.4; radius += 2;
+    }
+    if (!found) return;
+    placed.push({ x, y, w: textW, h: textH });
+    const rot = (Math.random() - 0.5) * 12;
+    texts.push(`<text x="${(x + textW/2).toFixed(1)}" y="${(y + size).toFixed(1)}" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="${size}" font-weight="${fw}" fill="${color}" opacity="${opacity.toFixed(2)}" transform="rotate(${rot.toFixed(1)},${(x+textW/2).toFixed(1)},${(y+textH/2).toFixed(1)})">${w.word.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</text>`);
+  });
+
+  texts.push(`<text x="${W-15}" y="${H-12}" text-anchor="end" font-family="'DM Sans', sans-serif" font-size="12" fill="#8899aa" opacity="0.35">Le 47 — Nuage des Causes</text>`);
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="#0a0e17"/>
+  ${texts.join('\n  ')}
+</svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const link = document.createElement('a');
+  link.download = `le47-nuage-complet-${new Date().toISOString().slice(0,10)}.svg`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
 });
 
 // ─── Mapping ───
