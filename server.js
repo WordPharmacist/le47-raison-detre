@@ -111,6 +111,21 @@ app.delete('/api/contributions/last', async (req, res) => {
   }
 });
 
+// DELETE a specific contribution by ID
+app.delete('/api/contributions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM contributions WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Contribution introuvable' });
+    }
+    res.json({ deleted: id });
+  } catch (e) {
+    console.error('DELETE /api/contributions/:id error:', e);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // POST import (merge)
 app.post('/api/import/merge', async (req, res) => {
   const { entries } = req.body;
