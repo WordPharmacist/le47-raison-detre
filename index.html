@@ -197,7 +197,7 @@ footer p { font-size: 12px; color: var(--text-muted); }
       <div id="tools-panel" style="display:none; margin-bottom:16px; padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px;">
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Import</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-          <label class="btn-sm btn-import" style="cursor:pointer;">↑ Ajouter au registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
+          <label class="btn-sm btn-import" style="cursor:pointer;">↑ Mettre à jour le registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
           <label class="btn-sm" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
         </div>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
@@ -583,11 +583,18 @@ function downloadFile(content, filename, mime) {
 }
 
 document.getElementById('export-json').addEventListener('click', () => {
-  downloadFile(JSON.stringify(entries, null, 2), `le47-contributions-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  const enriched = entries.map(e => ({
+    ...e,
+    tags: e.causes.map((_, i) => causeTagsMap[`${e.id}-${i}`] || null)
+  }));
+  downloadFile(JSON.stringify(enriched, null, 2), `le47-contributions-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
 });
 document.getElementById('export-csv').addEventListener('click', () => {
-  const header = 'id,pseudo,causes,date\n';
-  const rows = entries.map(e => `"${e.id}","${e.pseudo}","${e.causes.join('; ')}","${new Date(e.timestamp).toISOString()}"`).join('\n');
+  const header = 'id,pseudo,causes,tags,date\n';
+  const rows = entries.map(e => {
+    const tags = e.causes.map((_, i) => causeTagsMap[`${e.id}-${i}`] || '');
+    return `"${e.id}","${e.pseudo}","${e.causes.join('; ')}","${tags.join('; ')}","${new Date(e.timestamp).toISOString()}"`;
+  }).join('\n');
   downloadFile('\uFEFF' + header + rows, `le47-contributions-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
 });
 
@@ -599,41 +606,29 @@ function checkAdminPassword() {
   return true;
 }
 
-const _mergeInput = document.getElementById('import-merge-btn');
-_mergeInput.closest('label').addEventListener('click', (e) => {
-  if (e.target === _mergeInput) return;
-  e.preventDefault();
-  if (!checkAdminPassword()) return;
-  _mergeInput.click();
-});
-
-const _replaceInput = document.getElementById('import-replace-btn');
-_replaceInput.closest('label').addEventListener('click', (e) => {
-  if (e.target === _replaceInput) return;
-  e.preventDefault();
-  if (!checkAdminPassword()) return;
-  _replaceInput.click();
-});
-
 // ─── Import merge ───
 document.getElementById('import-merge-btn').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
-  if (!file) return;
-  const text = await file.text();
+  if (!file) { ev.target.value = ''; return; }
+  if (!checkAdminPassword()) { ev.target.value = ''; return; }
+  let imported;
   try {
-    const imported = JSON.parse(text);
-    if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); return; }
+    imported = JSON.parse(await file.text());
+  } catch { alert('❌ Fichier JSON invalide.'); ev.target.value = ''; return; }
+  if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); ev.target.value = ''; return; }
+  try {
     const result = await apiPost('/api/import/merge', { entries: imported });
-    alert(`✅ ${result.added} nouvelle(s) contribution(s) ajoutée(s).\n${result.total} au total.`);
+    alert(`✅ ${result.created} créée(s), ${result.updated} mise(s) à jour.\n${result.total} contribution(s) au total.`);
     await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
-  } catch { alert('❌ Fichier JSON invalide.'); }
+  } catch (err) { alert(`❌ Erreur serveur : ${err.message}`); }
   ev.target.value = '';
 });
 
 // ─── Import replace ───
 document.getElementById('import-replace-btn').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
-  if (!file) return;
+  if (!file) { ev.target.value = ''; return; }
+  if (!checkAdminPassword()) { ev.target.value = ''; return; }
   if (!confirm(`⚠️ ATTENTION\n\nCette action va SUPPRIMER les ${entries.length} contribution(s) actuelles et les remplacer.\n\nIrréversible. Continuer ?`)) {
     ev.target.value = ''; return;
   }
