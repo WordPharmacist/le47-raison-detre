@@ -238,8 +238,8 @@ footer p { font-size: 12px; color: var(--text-muted); }
       <div id="tools-panel" style="display:none; margin-bottom:16px; padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px;">
         <p id="import-section-title" style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Import</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-          <label class="btn-sm btn-import" style="cursor:pointer;">↑ Mettre à jour le registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
-          <label class="btn-sm" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
+          <label class="btn-sm btn-import" style="cursor:pointer;" id="import-merge-label">↑ Ajouter au registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
+          <label class="btn-sm" id="import-replace-label" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
         </div>
         <p id="export-section-title" style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
@@ -269,10 +269,6 @@ footer p { font-size: 12px; color: var(--text-muted); }
       <div id="export-cloud-btns" style="display:none; margin-top:16px; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button id="export-cloud-img" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">📷 <span id="export-cloud-label">Exporter cette photo du nuage (PNG)</span></button>
         <button id="export-cloud-svg" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">✦ <span id="export-cloud-svg-label">Exporter le nuage en entier (SVG)</span></button>
-      </div>
-      <div id="export-cloud-btns" style="display:none; margin-top:16px; gap:10px; justify-content:center; flex-wrap:wrap;">
-        <button id="export-cloud-img" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">📷 Exporter cette photo du nuage (PNG)</button>
-        <button id="export-cloud-svg" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">✦ Exporter le nuage en entier (SVG)</button>
       </div>
     </div>
 
@@ -320,6 +316,389 @@ let cloudRotationInterval = null;
 let cloudQueue = [];
 let cloudQueuePoolSize = 0;
 
+// ─── i18n ───
+const LANGS = [
+  { code: 'fr', flag: '🇫🇷', label: 'FR' },
+  { code: 'en', flag: '🇬🇧', label: 'EN' },
+  { code: 'vi', flag: '🇻🇳', label: 'VI' },
+];
+
+let currentLang = localStorage.getItem('le47_lang') || 'fr';
+
+const I18N = {
+  fr: {
+    pageTitle: "Le 47 — Raison d'Être Évolutive",
+    headerTitle: "La Raison d'Être du 47",
+    headerSubtitle: "Un espace autogéré dont la raison d'être est vivante,<br>nourrie par celles et ceux qui le font exister.",
+    tabContribute: "✦ Contribuer",
+    tabCloud: "☁ Nuage",
+    tabMapping: "⊞ Mapping",
+    formTitle: "Nourris la raison d'être",
+    formSubtitle: "Quelles causes te portent ? Chaque contribution enrichit l'identité vivante du 47.",
+    pseudoLabel: "Ton pseudo",
+    pseudoPlaceholder: "Comment tu t'appelles ?",
+    causesLabel: "Tes causes (1 à 5) — max 3 mots chacune",
+    submitBtn: "Contribuer à la raison d'être ✦",
+    causeCountFn: (n) => `${n}/5 cause${n > 1 ? 's' : ''} renseignée${n > 1 ? 's' : ''}`,
+    thanksTitle: "Merci pour ta contribution !",
+    thanksBody: "La raison d'être du 47 vient de s'enrichir grâce à toi.<br>Elle est vivante, évolutive, comme nous.",
+    registryTitleFn: (n) => `Registre (${n} contribution${n > 1 ? 's' : ''})`,
+    toolsBtnLabel: "Outils",
+    importSectionTitle: "Import",
+    importMerge: "↑ Ajouter au registre",
+    importReplace: "↑ Remplacer le registre",
+    exportSectionTitle: "Export",
+    dangerZoneTitle: "Zone dangereuse",
+    deleteAllLabel: "Supprimer tout le registre",
+    loading: "Chargement…",
+    registryEmpty: "Le registre est vide. Contribue ci-dessus !",
+    registryNote: "Seule la dernière contribution peut être modifiée.",
+    editBtn: "✎ Modifier",
+    showMoreFn: (n) => `▼ Afficher les ${n} contributions`,
+    showLess: "▲ Réduire",
+    cloudTitle: "Le Nuage des Causes",
+    cloudSubtitle: "Découvre et Contribue aux causes qui font vivre la communauté",
+    cloudEmpty: "Aucune contribution pour l'instant. Sois le·la premier·e !",
+    exportCloudLabel: "Exporter cette photo du nuage (PNG)",
+    exportCloudSvgLabel: "Exporter le nuage en entier (SVG)",
+    cloudQuoteLabel: "LA Raison d'Être du 47",
+    cloudQuote: "Nul si découvert",
+    cloudQuoteDesc: "La vraie raison d'être est invisible et évolutive —<br>elle se vit mais ne se fige jamais.",
+    mappingTitle: "Mapping des Causes",
+    mappingDesc: "Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.<br><span style=\"font-size:12px; opacity:0.7;\">Intendance du site&nbsp;: Adrien Tardif</span>",
+    mappingFilterPh: "Rechercher une cause ou un pseudo…",
+    mappingEmpty: "Aucune cause trouvée.",
+    mappingPrev: "← Préc.",
+    mappingNext: "Suiv. →",
+    mappingPageFn: (p, tot, c) => `${p} / ${tot} — ${c} causes`,
+    tagPlaceholder: "Tag…",
+    tagNewFn: (tag) => `+ Créer "${tag}"`,
+    footer: "Le 47 — Espace d'une communauté d'acteurs engagés · Raison d'être évolutive",
+    alertFileEmpty: "Fichier vide ou invalide.",
+    alertJsonInvalid: "❌ Fichier JSON invalide.",
+    alertMergeFn: (added, total) => `✅ ${added} nouvelle(s) contribution(s) ajoutée(s).\n${total} au total.`,
+    alertReplaceFn: (total) => `✅ Registre remplacé. ${total} contribution(s).`,
+    confirmReplaceFn: (n) => `⚠️ ATTENTION\n\nCette action va SUPPRIMER les ${n} contribution(s) actuelles et les remplacer.\n\nIrréversible. Continuer ?`,
+    alertRegistryAlreadyEmpty: "Le registre est déjà vide.",
+    promptDeleteFn: (n) => `⚠️ ATTENTION — ACTION IRRÉVERSIBLE\n\nCette action va supprimer définitivement les ${n} contribution(s) du registre.\n\nPour confirmer, tape exactement :\nsupprimer le registre`,
+    deleteConfirmWord: "supprimer le registre",
+    alertDeleteWrong: "❌ Texte incorrect. Suppression annulée.",
+    alertDeleteOkFn: (n) => `✅ Registre vidé. ${n} contribution(s) supprimée(s).`,
+    alertDeleteError: "❌ Erreur lors de la suppression.",
+    alertSubmitError: "Erreur lors de l'envoi. Réessaie.",
+    placeholders: ['Solidarité','Transition écologique','Art vivant','Bien commun','Éducation populaire'],
+    themes: {
+      'solidarité':'solidarité','écologie':'écologie','éducation':'éducation',
+      'art & création':'art & création','bien-être':'bien-être','technologie':'technologie',
+      'gouvernance':'gouvernance','entrepreneuriat':'entrepreneuriat','lien social':'lien social'
+    }
+  },
+  en: {
+    pageTitle: "Le 47 — Evolving Purpose",
+    headerTitle: "Le 47's Purpose",
+    headerSubtitle: "A self-managed space whose purpose is alive,<br>nurtured by those who make it exist.",
+    tabContribute: "✦ Contribute",
+    tabCloud: "☁ Cloud",
+    tabMapping: "⊞ Mapping",
+    formTitle: "Nurture the purpose",
+    formSubtitle: "What causes drive you? Each contribution enriches the living identity of Le 47.",
+    pseudoLabel: "Your nickname",
+    pseudoPlaceholder: "What's your name?",
+    causesLabel: "Your causes (1 to 5) — max 3 words each",
+    submitBtn: "Contribute to the purpose ✦",
+    causeCountFn: (n) => `${n}/5 cause${n > 1 ? 's' : ''} filled`,
+    thanksTitle: "Thank you for your contribution!",
+    thanksBody: "Le 47's purpose has just been enriched thanks to you.<br>It is alive, evolving, like us.",
+    registryTitleFn: (n) => `Registry (${n} contribution${n > 1 ? 's' : ''})`,
+    toolsBtnLabel: "Tools",
+    importSectionTitle: "Import",
+    importMerge: "↑ Add to registry",
+    importReplace: "↑ Replace registry",
+    exportSectionTitle: "Export",
+    dangerZoneTitle: "Danger zone",
+    deleteAllLabel: "Delete entire registry",
+    loading: "Loading…",
+    registryEmpty: "The registry is empty. Contribute above!",
+    registryNote: "Only the last contribution can be edited.",
+    editBtn: "✎ Edit",
+    showMoreFn: (n) => `▼ Show all ${n} contributions`,
+    showLess: "▲ Collapse",
+    cloudTitle: "The Causes Cloud",
+    cloudSubtitle: "Discover and Contribute to the causes that drive the community",
+    cloudEmpty: "No contributions yet. Be the first!",
+    exportCloudLabel: "Export this cloud photo (PNG)",
+    exportCloudSvgLabel: "Export full cloud (SVG)",
+    cloudQuoteLabel: "THE Purpose of Le 47",
+    cloudQuote: "Worthless if discovered",
+    cloudQuoteDesc: "The true purpose is invisible and evolving —<br>it is lived but never set in stone.",
+    mappingTitle: "Causes Mapping",
+    mappingDesc: "Assign a tag to several causes to group them in the cloud. Note: grouping words brings clarity but may introduce reading biases. It is an act that engages individual sovereignties with a collective impact.<br><span style=\"font-size:12px; opacity:0.7;\">Site stewardship: Adrien Tardif</span>",
+    mappingFilterPh: "Search for a cause or nickname…",
+    mappingEmpty: "No cause found.",
+    mappingPrev: "← Prev.",
+    mappingNext: "Next →",
+    mappingPageFn: (p, tot, c) => `${p} / ${tot} — ${c} causes`,
+    tagPlaceholder: "Tag…",
+    tagNewFn: (tag) => `+ Create "${tag}"`,
+    footer: "Le 47 — Space of a community of committed actors · Evolving purpose",
+    alertFileEmpty: "Empty or invalid file.",
+    alertJsonInvalid: "❌ Invalid JSON file.",
+    alertMergeFn: (added, total) => `✅ ${added} new contribution(s) added.\n${total} total.`,
+    alertReplaceFn: (total) => `✅ Registry replaced. ${total} contribution(s).`,
+    confirmReplaceFn: (n) => `⚠️ WARNING\n\nThis action will DELETE the current ${n} contribution(s) and replace them.\n\nIrreversible. Continue?`,
+    alertRegistryAlreadyEmpty: "The registry is already empty.",
+    promptDeleteFn: (n) => `⚠️ WARNING — IRREVERSIBLE ACTION\n\nThis will permanently delete the ${n} contribution(s) from the registry.\n\nTo confirm, type exactly:\ndelete the registry`,
+    deleteConfirmWord: "delete the registry",
+    alertDeleteWrong: "❌ Incorrect text. Deletion cancelled.",
+    alertDeleteOkFn: (n) => `✅ Registry cleared. ${n} contribution(s) deleted.`,
+    alertDeleteError: "❌ Error during deletion.",
+    alertSubmitError: "Error sending. Please try again.",
+    placeholders: ['Solidarity','Ecological transition','Living art','Common good','Popular education'],
+    themes: {
+      'solidarité':'solidarity','écologie':'ecology','éducation':'education',
+      'art & création':'art & creation','bien-être':'well-being','technologie':'technology',
+      'gouvernance':'governance','entrepreneuriat':'entrepreneurship','lien social':'social ties'
+    }
+  },
+  vi: {
+    pageTitle: "Le 47 — Mục Đích Tiến Hóa",
+    headerTitle: "Mục Đích của Le 47",
+    headerSubtitle: "Một không gian tự quản lý có mục đích đang sống,<br>được nuôi dưỡng bởi những người làm cho nó tồn tại.",
+    tabContribute: "✦ Đóng Góp",
+    tabCloud: "☁ Đám Mây",
+    tabMapping: "⊞ Mapping",
+    formTitle: "Nuôi Dưỡng Mục Đích",
+    formSubtitle: "Những nguyên nhân nào thúc đẩy bạn? Mỗi đóng góp làm phong phú bản sắc sống động của Le 47.",
+    pseudoLabel: "Biệt danh của bạn",
+    pseudoPlaceholder: "Bạn tên gì?",
+    causesLabel: "Nguyên nhân của bạn (1 đến 5) — tối đa 3 từ mỗi cái",
+    submitBtn: "Đóng Góp Vào Mục Đích ✦",
+    causeCountFn: (n) => `${n}/5 nguyên nhân đã điền`,
+    thanksTitle: "Cảm ơn đóng góp của bạn!",
+    thanksBody: "Mục đích của Le 47 vừa được làm phong phú hơn nhờ bạn.<br>Nó sống động, tiến hóa, như chúng ta.",
+    registryTitleFn: (n) => `Sổ đăng ký (${n} đóng góp)`,
+    toolsBtnLabel: "Công Cụ",
+    importSectionTitle: "Nhập",
+    importMerge: "↑ Thêm vào sổ đăng ký",
+    importReplace: "↑ Thay thế sổ đăng ký",
+    exportSectionTitle: "Xuất",
+    dangerZoneTitle: "Vùng nguy hiểm",
+    deleteAllLabel: "Xóa toàn bộ sổ đăng ký",
+    loading: "Đang tải…",
+    registryEmpty: "Sổ đăng ký trống. Hãy đóng góp ở trên!",
+    registryNote: "Chỉ có thể chỉnh sửa đóng góp cuối cùng.",
+    editBtn: "✎ Sửa",
+    showMoreFn: (n) => `▼ Hiển thị ${n} đóng góp`,
+    showLess: "▲ Thu gọn",
+    cloudTitle: "Đám Mây Nguyên Nhân",
+    cloudSubtitle: "Khám phá và Đóng góp vào các nguyên nhân làm sống động cộng đồng",
+    cloudEmpty: "Chưa có đóng góp nào. Hãy là người đầu tiên!",
+    exportCloudLabel: "Xuất ảnh đám mây (PNG)",
+    exportCloudSvgLabel: "Xuất toàn bộ đám mây (SVG)",
+    cloudQuoteLabel: "MỤC ĐÍCH của Le 47",
+    cloudQuote: "Vô Nghĩa Nếu Bị Khám Phá",
+    cloudQuoteDesc: "Mục đích thực sự là vô hình và tiến hóa —<br>nó được sống nhưng không bao giờ bị đóng băng.",
+    mappingTitle: "Ánh Xạ Nguyên Nhân",
+    mappingDesc: "Gán một thẻ cho nhiều nguyên nhân để nhóm chúng trong đám mây. Lưu ý: nhóm các từ mang lại sự rõ ràng nhưng có thể đưa vào thiên kiến đọc. Đây là hành động gắn kết chủ quyền cá nhân với tác động tập thể.<br><span style=\"font-size:12px; opacity:0.7;\">Quản lý trang: Adrien Tardif</span>",
+    mappingFilterPh: "Tìm kiếm nguyên nhân hoặc biệt danh…",
+    mappingEmpty: "Không tìm thấy nguyên nhân.",
+    mappingPrev: "← Trước",
+    mappingNext: "Tiếp →",
+    mappingPageFn: (p, tot, c) => `${p} / ${tot} — ${c} nguyên nhân`,
+    tagPlaceholder: "Thẻ…",
+    tagNewFn: (tag) => `+ Tạo "${tag}"`,
+    footer: "Le 47 — Không gian của cộng đồng những người hành động · Mục đích tiến hóa",
+    alertFileEmpty: "Tệp trống hoặc không hợp lệ.",
+    alertJsonInvalid: "❌ Tệp JSON không hợp lệ.",
+    alertMergeFn: (added, total) => `✅ Đã thêm ${added} đóng góp mới.\nTổng cộng ${total}.`,
+    alertReplaceFn: (total) => `✅ Đã thay thế sổ đăng ký. ${total} đóng góp.`,
+    confirmReplaceFn: (n) => `⚠️ CẢNH BÁO\n\nHành động này sẽ XÓA ${n} đóng góp hiện tại và thay thế chúng.\n\nKhông thể hoàn tác. Tiếp tục?`,
+    alertRegistryAlreadyEmpty: "Sổ đăng ký đã trống.",
+    promptDeleteFn: (n) => `⚠️ CẢNH BÁO — KHÔNG THỂ HOÀN TÁC\n\nHành động này sẽ xóa vĩnh viễn ${n} đóng góp khỏi sổ đăng ký.\n\nĐể xác nhận, hãy nhập chính xác:\nxóa sổ đăng ký`,
+    deleteConfirmWord: "xóa sổ đăng ký",
+    alertDeleteWrong: "❌ Văn bản không đúng. Đã hủy xóa.",
+    alertDeleteOkFn: (n) => `✅ Đã xóa sổ đăng ký. ${n} đóng góp đã bị xóa.`,
+    alertDeleteError: "❌ Lỗi khi xóa.",
+    alertSubmitError: "Lỗi khi gửi. Vui lòng thử lại.",
+    placeholders: ['Đoàn kết','Chuyển đổi sinh thái','Nghệ thuật sống','Phúc lợi chung','Giáo dục đại chúng'],
+    themes: {
+      'solidarité':'đoàn kết','écologie':'sinh thái','éducation':'giáo dục',
+      'art & création':'nghệ thuật','bien-être':'sức khỏe','technologie':'công nghệ',
+      'gouvernance':'quản trị','entrepreneuriat':'khởi nghiệp','lien social':'gắn kết xã hội'
+    }
+  }
+};
+
+function t(key, ...args) {
+  const entry = (I18N[currentLang] || I18N.fr)[key] ?? I18N.fr[key];
+  return typeof entry === 'function' ? entry(...args) : (entry ?? key);
+}
+
+// ─── Translation cache (word cloud) ───
+let translationCache = {};
+try { translationCache = JSON.parse(localStorage.getItem('le47_trans') || '{}'); } catch(e) {}
+
+function saveTransCache() {
+  try { localStorage.setItem('le47_trans', JSON.stringify(translationCache)); } catch(e) {}
+}
+
+const TRANSLATION_OVERRIDES = {
+  'Opale': { en: 'Teal', vi: 'Teal' },
+};
+
+async function translateWord(word, targetLang) {
+  if (targetLang === 'fr') return word;
+
+  const override = TRANSLATION_OVERRIDES[word] || TRANSLATION_OVERRIDES[word.toLowerCase()];
+  if (override?.[targetLang]) return override[targetLang];
+
+  // Handle theme bracket notation ⟨ theme ⟩
+  const themeMatch = word.match(/^⟨\s*(.+?)\s*⟩$/);
+  if (themeMatch) {
+    const themeKey = themeMatch[1].toLowerCase();
+    const translated = (I18N[targetLang]?.themes || {})[themeKey];
+    return translated ? `⟨ ${translated} ⟩` : word;
+  }
+
+  const cacheKey = `${word}::${targetLang}`;
+  if (translationCache[cacheKey] !== undefined) return translationCache[cacheKey];
+
+  // For VI: if we already know it's English from cached EN translation, keep original
+  if (targetLang === 'vi') {
+    const enKey = `${word}::en`;
+    if (translationCache[enKey] !== undefined) {
+      const isEnglish = translationCache[enKey].toLowerCase().trim() === word.toLowerCase().trim();
+      if (isEnglish) {
+        translationCache[cacheKey] = word;
+        return word;
+      }
+    }
+  }
+
+  try {
+    const langpair = targetLang === 'en' ? 'fr|en' : 'fr|vi';
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${langpair}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    if (data.responseStatus === 200) {
+      const translated = data.responseData.translatedText;
+      const detectedSrc = ((data.matches || [])[0]?.['detected-source-language'] || '').toUpperCase();
+      // Word is English if source detected as EN, or if translation identical to original
+      const isEnglish = detectedSrc === 'EN' || translated.toLowerCase().trim() === word.toLowerCase().trim();
+      translationCache[cacheKey] = isEnglish ? word : translated;
+      saveTransCache();
+      return translationCache[cacheKey];
+    }
+  } catch(e) {
+    console.warn('Translation failed for:', word);
+  }
+
+  translationCache[cacheKey] = word;
+  return word;
+}
+
+async function translateWordSet(wordSet) {
+  if (currentLang === 'fr') return wordSet;
+  return Promise.all(wordSet.map(async w => ({
+    ...w, word: await translateWord(w.word, currentLang)
+  })));
+}
+
+// ─── Language switcher UI ───
+function updateLangSwitcherUI() {
+  const lang = LANGS.find(l => l.code === currentLang) || LANGS[0];
+  document.getElementById('lang-flag').textContent = lang.flag;
+  document.getElementById('lang-code').textContent = lang.label;
+  document.querySelectorAll('.lang-opt').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLang);
+  });
+}
+
+function applyLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('le47_lang', lang);
+  document.documentElement.lang = lang;
+  document.title = t('pageTitle');
+  updateLangSwitcherUI();
+
+  // Header
+  document.getElementById('header-title').textContent = t('headerTitle');
+  document.getElementById('header-subtitle').innerHTML = t('headerSubtitle');
+
+  // Tabs
+  document.getElementById('tab-btn-contribute').textContent = t('tabContribute');
+  document.getElementById('tab-btn-cloud').textContent = t('tabCloud');
+  document.getElementById('tab-btn-mapping').textContent = t('tabMapping');
+
+  // Form
+  document.getElementById('form-title').textContent = t('formTitle');
+  document.getElementById('form-subtitle').textContent = t('formSubtitle');
+  document.getElementById('pseudo-label').textContent = t('pseudoLabel');
+  document.getElementById('pseudo').placeholder = t('pseudoPlaceholder');
+  document.getElementById('causes-label').textContent = t('causesLabel');
+  document.getElementById('submit-btn').textContent = t('submitBtn');
+
+  // Cause placeholders
+  const phs = t('placeholders');
+  document.querySelectorAll('.cause-field').forEach((f, i) => {
+    if (phs[i]) f.placeholder = phs[i];
+  });
+
+  // Tools panel
+  document.getElementById('tools-btn-label').textContent = t('toolsBtnLabel');
+  document.getElementById('import-section-title').textContent = t('importSectionTitle');
+  // Import labels contain a hidden file input — update text node only
+  const mergeLabel = document.getElementById('import-merge-label');
+  mergeLabel.childNodes[0].textContent = t('importMerge') + ' ';
+  const replaceLabel = document.getElementById('import-replace-label');
+  replaceLabel.childNodes[0].textContent = t('importReplace') + ' ';
+  document.getElementById('export-section-title').textContent = t('exportSectionTitle');
+  document.getElementById('danger-zone-title').textContent = t('dangerZoneTitle');
+  document.getElementById('delete-all-label').textContent = t('deleteAllLabel');
+  document.getElementById('registry-note').textContent = t('registryNote');
+
+  // Cloud
+  document.getElementById('cloud-title').textContent = t('cloudTitle');
+  document.getElementById('cloud-subtitle').textContent = t('cloudSubtitle');
+  document.getElementById('cloud-quote-label').textContent = t('cloudQuoteLabel');
+  document.getElementById('cloud-quote').textContent = t('cloudQuote');
+  document.getElementById('cloud-quote-desc').innerHTML = t('cloudQuoteDesc');
+  document.getElementById('export-cloud-label').textContent = t('exportCloudLabel');
+  document.getElementById('export-cloud-svg-label').textContent = t('exportCloudSvgLabel');
+
+  // Mapping
+  document.getElementById('mapping-title').textContent = t('mappingTitle');
+  document.getElementById('mapping-desc').innerHTML = t('mappingDesc');
+  document.getElementById('mapping-filter').placeholder = t('mappingFilterPh');
+
+  // Footer
+  document.getElementById('footer-text').textContent = t('footer');
+
+  // Re-render dynamic content
+  updateCauseCount();
+  renderRegistry();
+  renderCloud();
+  if (document.getElementById('tab-mapping').classList.contains('active')) renderMapping();
+}
+
+document.getElementById('lang-current-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const menu = document.getElementById('lang-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', () => {
+  document.getElementById('lang-menu').style.display = 'none';
+});
+document.querySelectorAll('.lang-opt').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('lang-menu').style.display = 'none';
+    applyLang(btn.dataset.lang);
+  });
+});
+
 // ─── API helpers ───
 async function apiGet(path) {
   const res = await fetch(API + path);
@@ -334,7 +713,6 @@ async function apiPost(path, body) {
 }
 async function apiDelete(path) {
   const res = await fetch(API + path, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
@@ -458,8 +836,6 @@ function normalize(str) {
   return s;
 }
 
-// ─── Thematic keywords ───
-
 // ─── Word weights ───
 function updateWords() {
   const now = Date.now();
@@ -529,12 +905,11 @@ function renderRegistry() {
     const visible = showAll ? reversed : reversed.slice(0, 5);
     list.innerHTML = visible.map(e => {
       const isLast = e.id === lastId;
-      return `<div class="entry-row" ${isLast ? 'id="last-entry-row"' : ''} data-id="${esc(e.id)}" data-pseudo="${esc(e.pseudo)}">
+      return `<div class="entry-row" ${isLast ? 'id="last-entry-row"' : ''}>
         <div><span class="entry-pseudo">${esc(e.pseudo)}</span><span class="entry-causes">${e.causes.map(esc).join(' · ')}</span></div>
         <div style="display:flex; align-items:center; gap:8px;">
-          ${isLast ? '<button class="btn-sm" id="edit-last-btn" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:11px; padding:5px 12px;">✎ Modifier</button>' : ''}
-          <button class="btn-sm btn-delete-entry" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.12); color:var(--text-muted); font-size:11px; padding:5px 10px;">✕ Supprimer</button>
-          <span class="entry-date">${new Date(e.timestamp).toLocaleDateString('fr-FR')}</span>
+          ${isLast ? `<button class="btn-sm" id="edit-last-btn" style="background:rgba(232,197,71,0.1); border-color:rgba(232,197,71,0.3); color:var(--accent); font-size:11px; padding:5px 12px;">${t('editBtn')}</button>` : ''}
+          <span class="entry-date">${new Date(e.timestamp).toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : currentLang === 'vi' ? 'vi-VN' : 'en-GB')}</span>
         </div>
       </div>`;
     }).join('');
@@ -550,28 +925,6 @@ function renderRegistry() {
 
     const editBtn = document.getElementById('edit-last-btn');
     if (editBtn) editBtn.addEventListener('click', editLastEntry);
-
-    list.querySelectorAll('.btn-delete-entry').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const row = btn.closest('.entry-row');
-        const id = row.dataset.id;
-        const pseudo = row.dataset.pseudo;
-        const confirmation = prompt(
-          `Tu es sur le point de supprimer les causes de ${pseudo}, est-ce bien toi ?\nSinon, as-tu recueilli le consentement ?\n\nPour confirmer, tape exactement :\nsupprimer les causes`
-        );
-        if (confirmation === null) return;
-        if (confirmation !== 'supprimer les causes') {
-          alert('Suppression annulée : la phrase saisie ne correspond pas.');
-          return;
-        }
-        apiDelete(`/api/contributions/${id}`)
-          .then(() => {
-            entries = entries.filter(e => e.id !== id);
-            renderRegistry();
-          })
-          .catch(() => alert('Erreur lors de la suppression.'));
-      });
-    });
   }
   renderEntryList();
 }
@@ -623,53 +976,34 @@ function downloadFile(content, filename, mime) {
 }
 
 document.getElementById('export-json').addEventListener('click', () => {
-  const enriched = entries.map(e => ({
-    ...e,
-    tags: e.causes.map((_, i) => causeTagsMap[`${e.id}-${i}`] || null)
-  }));
-  downloadFile(JSON.stringify(enriched, null, 2), `le47-contributions-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  downloadFile(JSON.stringify(entries, null, 2), `le47-contributions-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
 });
 document.getElementById('export-csv').addEventListener('click', () => {
-  const header = 'id,pseudo,causes,tags,date\n';
-  const rows = entries.map(e => {
-    const tags = e.causes.map((_, i) => causeTagsMap[`${e.id}-${i}`] || '');
-    return `"${e.id}","${e.pseudo}","${e.causes.join('; ')}","${tags.join('; ')}","${new Date(e.timestamp).toISOString()}"`;
-  }).join('\n');
-  downloadFile('\uFEFF' + header + rows, `le47-contributions-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
+  const header = 'id,pseudo,causes,date\n';
+  const rows = entries.map(e => `"${e.id}","${e.pseudo}","${e.causes.join('; ')}","${new Date(e.timestamp).toISOString()}"`).join('\n');
+  downloadFile('﻿' + header + rows, `le47-contributions-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
 });
-
-// ─── Admin password gate ───
-function checkAdminPassword() {
-  const pwd = prompt('🔒 Accès administrateur\n\nMot de passe :');
-  if (pwd === null) return false;
-  if (pwd !== '479210$') { alert('❌ Mot de passe incorrect.'); return false; }
-  return true;
-}
 
 // ─── Import merge ───
 document.getElementById('import-merge-btn').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
-  if (!file) { ev.target.value = ''; return; }
-  if (!checkAdminPassword()) { ev.target.value = ''; return; }
-  let imported;
+  if (!file) return;
+  const text = await file.text();
   try {
-    imported = JSON.parse(await file.text());
-  } catch { alert('❌ Fichier JSON invalide.'); ev.target.value = ''; return; }
-  if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); ev.target.value = ''; return; }
-  try {
+    const imported = JSON.parse(text);
+    if (!Array.isArray(imported) || imported.length === 0) { alert(t('alertFileEmpty')); return; }
     const result = await apiPost('/api/import/merge', { entries: imported });
-    alert(`✅ ${result.created} créée(s), ${result.updated} mise(s) à jour.\n${result.total} contribution(s) au total.`);
+    alert(t('alertMergeFn', result.added, result.total));
     await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
-  } catch (err) { alert(`❌ Erreur serveur : ${err.message}`); }
+  } catch { alert(t('alertJsonInvalid')); }
   ev.target.value = '';
 });
 
 // ─── Import replace ───
 document.getElementById('import-replace-btn').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
-  if (!file) { ev.target.value = ''; return; }
-  if (!checkAdminPassword()) { ev.target.value = ''; return; }
-  if (!confirm(`⚠️ ATTENTION\n\nCette action va SUPPRIMER les ${entries.length} contribution(s) actuelles et les remplacer.\n\nIrréversible. Continuer ?`)) {
+  if (!file) return;
+  if (!confirm(t('confirmReplaceFn', entries.length))) {
     ev.target.value = ''; return;
   }
   const text = await file.text();
@@ -685,14 +1019,11 @@ document.getElementById('import-replace-btn').addEventListener('change', async (
 
 // ─── Delete all ───
 document.getElementById('delete-all-btn').addEventListener('click', async () => {
-  if (entries.length === 0) { alert('Le registre est déjà vide.'); return; }
-  if (!checkAdminPassword()) return;
-  const input = prompt(
-    `⚠️ ATTENTION — ACTION IRRÉVERSIBLE\n\nCette action va supprimer définitivement les ${entries.length} contribution(s) du registre.\n\nPour confirmer, tape exactement :\nsupprimer le registre`
-  );
-  if (input === null) return; // cancelled
-  if (input.trim().toLowerCase() !== 'supprimer le registre') {
-    alert('❌ Texte incorrect. Suppression annulée.');
+  if (entries.length === 0) { alert(t('alertRegistryAlreadyEmpty')); return; }
+  const input = prompt(t('promptDeleteFn', entries.length));
+  if (input === null) return;
+  if (input.trim().toLowerCase() !== t('deleteConfirmWord')) {
+    alert(t('alertDeleteWrong'));
     return;
   }
   try {
@@ -722,25 +1053,31 @@ function getCloudWordSet() {
   const top = allWords.slice(0, 15);
   const pool = allWords.slice(15);
 
-  // Réinitialise la file si la taille du pool a changé (nouvelles contributions)
   if (cloudQueuePoolSize !== pool.length) {
     cloudQueue = [];
     cloudQueuePoolSize = pool.length;
   }
-
-  // Recharge la file quand elle est épuisée
   if (cloudQueue.length < 35) {
     cloudQueue = [...cloudQueue, ...shuffleArray(pool.slice())];
   }
-
   return [...top, ...cloudQueue.splice(0, 35)];
+}
+
+function getTranslatedCloudWordSet() {
+  const src = translatedWords.length === allWords.length ? translatedWords : allWords;
+  if (src.length <= 50) return src;
+  const top = src.slice(0, 15);
+  const pool = src.slice(15);
+  // mirror queue logic using allWords queue state (already advanced by getCloudWordSet)
+  const rest = shuffleArray(pool.slice());
+  return [...top, ...rest].slice(0, 50);
 }
 
 async function renderCloud() {
   if (cloudRotationInterval) { clearInterval(cloudRotationInterval); cloudRotationInterval = null; }
   const container = document.getElementById('word-cloud');
   if (allWords.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">Aucune contribution pour l\'instant. Sois le·la premier·e !</p>';
+    container.innerHTML = `<p style="color:var(--text-muted); font-style:italic; padding:40px 0; text-align:center;">${t('cloudEmpty')}</p>`;
     document.getElementById('export-cloud-btns').style.display = 'none';
     return;
   }
@@ -792,11 +1129,12 @@ function doRenderCloud(display) {
     if (!found) return;
     placed.push({ x, y, w: textW, h: textH });
     const rot = isMobile ? (Math.random() - 0.5) * 8 : (Math.random() - 0.5) * 12;
+    const isTheme = w.word.startsWith('⟨');
     const span = document.createElement('span');
     span.className = 'cloud-word';
     span.textContent = w.word;
-    span.title = `${w.word}: ${w.count} fois`;
-    span.style.cssText = `font-size:${size}px; font-weight:${fw}; color:${color}; opacity:${opacity}; ${shadow} left:${Math.round(x)}px; top:${Math.round(y)}px; transform:rotate(${rot.toFixed(1)}deg); max-width:${W - 10}px; overflow:hidden; text-overflow:ellipsis;`;
+    span.title = isTheme ? `${w.count}` : `${w.word}: ${w.count}`;
+    span.style.cssText = `font-size:${size}px; font-weight:${fw}; color:${color}; opacity:${opacity}; ${shadow} left:${Math.round(x)}px; top:${Math.round(y)}px; transform:rotate(${rot.toFixed(1)}deg); max-width:${W - 10}px; overflow:hidden; text-overflow:ellipsis; ${isTheme ? 'border-bottom:1px dashed '+color+'; padding-bottom:2px;' : ''}`;
     container.appendChild(span);
   });
   document.getElementById('export-cloud-btns').style.display = 'flex';
@@ -843,9 +1181,9 @@ document.getElementById('export-cloud-img').addEventListener('click', () => {
 });
 
 // ─── Export cloud as SVG (all words) ───
-document.getElementById('export-cloud-svg').addEventListener('click', () => {
+document.getElementById('export-cloud-svg').addEventListener('click', async () => {
   if (allWords.length === 0) return;
-  const display = allWords;
+  const display = await translateWordSet(allWords);
   const maxW = Math.max(...display.map(w => w.weight));
   const W = 1400;
   const maxFontSize = 48;
