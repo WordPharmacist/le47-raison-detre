@@ -148,22 +148,63 @@ footer p { font-size: 12px; color: var(--text-muted); }
 }
 .tag-option:hover { background: rgba(255,255,255,0.08); }
 .tag-option.new-tag { color: var(--accent); font-style: italic; }
+
+/* ── Language switcher ── */
+.lang-switcher {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+}
+.lang-current {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 20px;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; transition: all 0.2s; letter-spacing: 0.5px;
+  user-select: none;
+}
+.lang-current:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+.lang-arrow { font-size: 9px; opacity: 0.6; }
+.lang-menu {
+  position: absolute; top: calc(100% + 5px); right: 0;
+  background: #1a1f2e; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px; overflow: hidden; min-width: 88px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.lang-opt {
+  display: block; width: 100%; padding: 9px 14px; font-size: 13px;
+  cursor: pointer; text-align: left; background: none; border: none;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 600;
+  transition: background 0.15s; letter-spacing: 0.5px;
+}
+.lang-opt:hover { background: rgba(255,255,255,0.08); }
+.lang-opt.active { color: var(--accent); }
 </style>
 </head>
 <body>
 
 <div class="bg-deco"></div>
 
+<!-- Language switcher -->
+<div class="lang-switcher" id="lang-switcher">
+  <button class="lang-current" id="lang-current-btn" aria-label="Change language">
+    <span id="lang-flag">🇫🇷</span> <span id="lang-code">FR</span> <span class="lang-arrow">▾</span>
+  </button>
+  <div class="lang-menu" id="lang-menu" style="display:none;">
+    <button class="lang-opt active" data-lang="fr">🇫🇷 FR</button>
+    <button class="lang-opt" data-lang="en">🇬🇧 EN</button>
+    <button class="lang-opt" data-lang="vi">🇻🇳 VI</button>
+  </div>
+</div>
+
 <header>
   <div class="logo">47</div>
-  <h1>La Raison d'Être du 47</h1>
-  <p class="subtitle">Un espace autogéré dont la raison d'être est vivante,<br>nourrie par celles et ceux qui le font exister.</p>
+  <h1 id="header-title">La Raison d'Être du 47</h1>
+  <p class="subtitle" id="header-subtitle">Un espace autogéré dont la raison d'être est vivante,<br>nourrie par celles et ceux qui le font exister.</p>
 </header>
 
 <nav id="tabs">
-  <button class="tab-btn active" data-tab="contribute">✦ Contribuer</button>
-  <button class="tab-btn" data-tab="cloud">☁ Nuage</button>
-  <button class="tab-btn" data-tab="mapping">⊞ Mapping</button>
+  <button class="tab-btn active" data-tab="contribute" id="tab-btn-contribute">✦ Contribuer</button>
+  <button class="tab-btn" data-tab="cloud" id="tab-btn-cloud">☁ Nuage</button>
+  <button class="tab-btn" data-tab="mapping" id="tab-btn-mapping">⊞ Mapping</button>
 </nav>
 
 <div class="container" style="padding-bottom:60px;">
@@ -171,14 +212,14 @@ footer p { font-size: 12px; color: var(--text-muted); }
   <!-- CONTRIBUTE -->
   <div class="tab-content active" id="tab-contribute">
     <div class="card" id="form-card">
-      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--accent); margin-bottom:6px;">Nourris la raison d'être</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5;">Quelles causes te portent ? Chaque contribution enrichit l'identité vivante du 47.</p>
+      <h2 id="form-title" style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--accent); margin-bottom:6px;">Nourris la raison d'être</h2>
+      <p id="form-subtitle" style="font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5;">Quelles causes te portent ? Chaque contribution enrichit l'identité vivante du 47.</p>
       <div id="cause-form">
         <div style="margin-bottom:24px;">
-          <label class="field-label">Ton pseudo</label>
+          <label class="field-label" id="pseudo-label">Ton pseudo</label>
           <input class="field" id="pseudo" placeholder="Comment tu t'appelles ?" maxlength="30">
         </div>
-        <label class="field-label" style="margin-bottom:12px;">Tes causes (1 à 5) — max 3 mots chacune</label>
+        <label class="field-label" id="causes-label" style="margin-bottom:12px;">Tes causes (1 à 5) — max 3 mots chacune</label>
         <div id="cause-inputs"></div>
         <button class="submit-btn" id="submit-btn">Contribuer à la raison d'être ✦</button>
         <p class="cause-count" id="cause-count">0/5 cause renseignée</p>
@@ -191,39 +232,43 @@ footer p { font-size: 12px; color: var(--text-muted); }
       <div class="registry-header">
         <span class="registry-title" id="registry-title">Registre (0 contribution)</span>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <button class="btn-sm" id="toggle-tools-btn" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:11px;">⚙ Outils</button>
+          <button class="btn-sm" id="toggle-tools-btn" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:11px;">⚙ <span id="tools-btn-label">Outils</span></button>
         </div>
       </div>
       <div id="tools-panel" style="display:none; margin-bottom:16px; padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px;">
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Import</p>
+        <p id="import-section-title" style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Import</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
           <label class="btn-sm btn-import" style="cursor:pointer;">↑ Mettre à jour le registre <input type="file" accept=".json" id="import-merge-btn" style="display:none;"></label>
           <label class="btn-sm" style="cursor:pointer; background:rgba(224,122,95,0.1); border-color:rgba(224,122,95,0.4); color:var(--coral);">↑ Remplacer le registre <input type="file" accept=".json" id="import-replace-btn" style="display:none;"></label>
         </div>
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
+        <p id="export-section-title" style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600;">Export</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
           <button class="btn-sm btn-json" id="export-json">↓ JSON</button>
           <button class="btn-sm btn-csv" id="export-csv">↓ CSV</button>
         </div>
-        <p style="font-size:12px; color:var(--coral); margin-bottom:10px; font-weight:600;">Zone dangereuse</p>
+        <p id="danger-zone-title" style="font-size:12px; color:var(--coral); margin-bottom:10px; font-weight:600;">Zone dangereuse</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn-sm" id="delete-all-btn" style="background:rgba(224,122,95,0.15); border-color:rgba(224,122,95,0.5); color:var(--coral);">🗑 Supprimer tout le registre</button>
+          <button class="btn-sm" id="delete-all-btn" style="background:rgba(224,122,95,0.15); border-color:rgba(224,122,95,0.5); color:var(--coral);">🗑 <span id="delete-all-label">Supprimer tout le registre</span></button>
         </div>
       </div>
       <div id="registry-list">
-        <p style="color:var(--text-muted); font-size:13px; font-style:italic;">Chargement…</p>
+        <p style="color:var(--text-muted); font-size:13px; font-style:italic;" id="registry-loading">Chargement…</p>
       </div>
-      <div class="registry-note">Seule la dernière contribution peut être modifiée.</div>
+      <div class="registry-note" id="registry-note">Seule la dernière contribution peut être modifiée.</div>
     </div>
   </div>
 
   <!-- WORD CLOUD -->
   <div class="tab-content" id="tab-cloud">
     <div class="card" style="text-align:center; min-height:300px;">
-      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--ice); margin-bottom:6px;">Le Nuage des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">Découvre et Contribue aux causes qui font vivre la communauté</p>
+      <h2 id="cloud-title" style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--ice); margin-bottom:6px;">Le Nuage des Causes</h2>
+      <p id="cloud-subtitle" style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">Découvre et Contribue aux causes qui font vivre la communauté</p>
       <div class="cloud-wrap" id="word-cloud">
-        <p style="color:var(--text-muted); font-style:italic; padding:40px 0;">Chargement…</p>
+        <p style="color:var(--text-muted); font-style:italic; padding:40px 0;" id="cloud-loading">Chargement…</p>
+      </div>
+      <div id="export-cloud-btns" style="display:none; margin-top:16px; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button id="export-cloud-img" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">📷 <span id="export-cloud-label">Exporter cette photo du nuage (PNG)</span></button>
+        <button id="export-cloud-svg" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">✦ <span id="export-cloud-svg-label">Exporter le nuage en entier (SVG)</span></button>
       </div>
       <div id="export-cloud-btns" style="display:none; margin-top:16px; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button id="export-cloud-img" class="btn-sm" style="background:rgba(168,216,234,0.1); border-color:rgba(168,216,234,0.3); color:var(--ice);">📷 Exporter cette photo du nuage (PNG)</button>
@@ -232,18 +277,18 @@ footer p { font-size: 12px; color: var(--text-muted); }
     </div>
 
     <div style="margin-top:30px; padding:28px 20px; text-align:center; background:linear-gradient(135deg, var(--ocean-dark), var(--ocean)); border-radius:14px; border:1px solid rgba(59,105,120,0.25);">
-      <div style="font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--ice); font-weight:700; margin-bottom:12px;">LA Raison d'Être du 47</div>
-      <div style="font-family:'Playfair Display',Georgia,serif; font-size:24px; color:var(--accent); font-style:italic; padding:10px 0;">Nul si découvert</div>
+      <div id="cloud-quote-label" style="font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--ice); font-weight:700; margin-bottom:12px;">LA Raison d'Être du 47</div>
+      <div id="cloud-quote" style="font-family:'Playfair Display',Georgia,serif; font-size:24px; color:var(--accent); font-style:italic; padding:10px 0;">Nul si découvert</div>
       <div style="width:60px; height:2px; margin:16px auto 0; background:linear-gradient(90deg, transparent, var(--accent), transparent);"></div>
-      <p style="font-size:12px; color:var(--text-muted); margin-top:14px; line-height:1.5; max-width:400px; margin-left:auto; margin-right:auto;">La vraie raison d'être est invisible et évolutive —<br>elle se vit mais ne se fige jamais.</p>
+      <p id="cloud-quote-desc" style="font-size:12px; color:var(--text-muted); margin-top:14px; line-height:1.5; max-width:400px; margin-left:auto; margin-right:auto;">La vraie raison d'être est invisible et évolutive —<br>elle se vit mais ne se fige jamais.</p>
     </div>
   </div>
 
   <!-- MAPPING -->
   <div class="tab-content" id="tab-mapping">
     <div class="card">
-      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--lavender); margin-bottom:6px;">Mapping des Causes</h2>
-      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.<br><span style="font-size:12px; opacity:0.7;">Intendance du site&nbsp;: Adrien Tardif</span></p>
+      <h2 id="mapping-title" style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--lavender); margin-bottom:6px;">Mapping des Causes</h2>
+      <p id="mapping-desc" style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Affecte un tag à plusieurs causes pour les regrouper dans le nuage. Attention&nbsp;: regrouper des mots apporte de la clarté contre l'introduction de biais de lecture. C'est un acte engageant des souverainetés individuelles avec un impact sur le collectif.<br><span style="font-size:12px; opacity:0.7;">Intendance du site&nbsp;: Adrien Tardif</span></p>
       <div style="margin-bottom:16px;">
         <input class="field" id="mapping-filter" placeholder="Rechercher une cause ou un pseudo…">
       </div>
@@ -254,7 +299,7 @@ footer p { font-size: 12px; color: var(--text-muted); }
 
 </div>
 
-<footer><p>Le 47 — Espace d'une communauté d'acteurs engagés · Raison d'être évolutive</p></footer>
+<footer><p id="footer-text">Le 47 — Espace d'une communauté d'acteurs engagés · Raison d'être évolutive</p></footer>
 
 <script>
 /* ═══════════════════════════════════════════════════
@@ -262,9 +307,8 @@ footer p { font-size: 12px; color: var(--text-muted); }
    Dynamic version — API calls to Node.js backend
    ═══════════════════════════════════════════════════ */
 
-const API = '';  // same origin — leave empty
+const API = '';
 const HUES = ['#e8c547','#a8d8ea','#e07a5f','#81b29a','#b8a9c9','#ffffff'];
-const PLACEHOLDERS = ['Solidarité','Transition écologique','Art vivant','Bien commun','Éducation populaire'];
 
 let entries = [];
 let words = [];
@@ -329,7 +373,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'cloud' && allWords.length > 50 && !cloudRotationInterval) {
-      cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
+      cloudRotationInterval = setInterval(() => doRenderCloud(getTranslatedCloudWordSet()), 15000);
     }
     if (btn.dataset.tab === 'mapping') renderMapping();
   });
@@ -338,10 +382,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ─── Cause inputs ───
 const causeContainer = document.getElementById('cause-inputs');
 causeContainer.innerHTML = '';
+const PLACEHOLDERS_INIT = ['Solidarité','Transition écologique','Art vivant','Bien commun','Éducation populaire'];
 for (let i = 0; i < 5; i++) {
   const row = document.createElement('div');
   row.className = 'cause-row';
-  row.innerHTML = `<span class="cause-num" id="num-${i}">${i+1}</span><input class="field cause-field" placeholder="${PLACEHOLDERS[i]}" data-idx="${i}" maxlength="30">`;
+  row.innerHTML = `<span class="cause-num" id="num-${i}">${i+1}</span><input class="field cause-field" placeholder="${PLACEHOLDERS_INIT[i]}" data-idx="${i}" maxlength="30">`;
   causeContainer.appendChild(row);
 }
 
@@ -358,7 +403,7 @@ document.querySelectorAll('.cause-field').forEach(input => {
 function updateCauseCount() {
   let count = 0;
   document.querySelectorAll('.cause-field').forEach(f => { if (f.value.trim()) count++; });
-  document.getElementById('cause-count').textContent = `${count}/5 cause${count > 1 ? 's' : ''} renseignée${count > 1 ? 's' : ''}`;
+  document.getElementById('cause-count').textContent = t('causeCountFn', count);
 }
 
 // ─── Submit ───
@@ -378,15 +423,14 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     const newEntry = await apiPost('/api/contributions', { pseudo, causes });
     entries.push(newEntry);
   } catch (e) {
-    alert('Erreur lors de l\'envoi. Réessaie.');
+    alert(t('alertSubmitError'));
     return;
   }
 
-  // Show thanks
   document.getElementById('cause-form').style.display = 'none';
   const thanks = document.getElementById('thanks-msg');
   thanks.style.display = 'block';
-  thanks.innerHTML = `<div class="thanks"><div style="font-size:48px;">✦</div><h3>Merci pour ta contribution !</h3><p>La raison d'être du 47 vient de s'enrichir grâce à toi.<br>Elle est vivante, évolutive, comme nous.</p></div>`;
+  thanks.innerHTML = `<div class="thanks"><div style="font-size:48px;">✦</div><h3>${t('thanksTitle')}</h3><p>${t('thanksBody')}</p></div>`;
 
   updateWords();
   renderRegistry();
@@ -405,7 +449,7 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
 
 // ─── Word normalization ───
 function stripAccents(s) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 function normalize(str) {
   let s = str.trim().toLowerCase();
@@ -436,7 +480,7 @@ function updateWords() {
         causeMap[key].weight += recency;
       } else {
         const normOriginal = normalize(original);
-        const matchingTag = allTags.find(t => normalize(t) === normOriginal);
+        const matchingTag = allTags.find(tg => normalize(tg) === normOriginal);
         if (matchingTag) {
           const tagKey = 'tag:' + matchingTag.trim().toLowerCase();
           if (!causeMap[tagKey]) causeMap[tagKey] = { count: 0, weight: 0, isTag: true, tagDisplay: matchingTag.trim() };
@@ -463,16 +507,17 @@ function updateWords() {
 
   allWords = mapped;
   words = allWords.slice(0, 50);
+  cloudQueue = []; cloudQueuePoolSize = 0; // reset queue on data change
 }
 
 // ─── Render registry ───
 function renderRegistry() {
   const title = document.getElementById('registry-title');
-  title.textContent = `Registre (${entries.length} contribution${entries.length > 1 ? 's' : ''})`;
+  title.textContent = t('registryTitleFn', entries.length);
 
   const list = document.getElementById('registry-list');
   if (entries.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted); font-size:13px; font-style:italic;">Le registre est vide. Contribue ci-dessus !</p>';
+    list.innerHTML = `<p style="color:var(--text-muted); font-size:13px; font-style:italic;">${t('registryEmpty')}</p>`;
     return;
   }
 
@@ -495,7 +540,7 @@ function renderRegistry() {
     }).join('');
 
     if (entries.length > 5) {
-      list.innerHTML += `<button id="toggle-entries-btn" class="btn-sm" style="display:block; margin:14px auto 0; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:12px;">${showAll ? '▲ Réduire' : '▼ Afficher les ' + entries.length + ' contributions'}</button>`;
+      list.innerHTML += `<button id="toggle-entries-btn" class="btn-sm" style="display:block; margin:14px auto 0; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted); font-size:12px;">${showAll ? t('showLess') : t('showMoreFn', entries.length)}</button>`;
       document.getElementById('toggle-entries-btn').addEventListener('click', () => {
         showAll = !showAll;
         renderEntryList();
@@ -542,7 +587,6 @@ async function editLastEntry() {
   if (entries.length === 0) return;
   const last = entries[entries.length - 1];
 
-  // Pre-fill form
   document.getElementById('pseudo').value = last.pseudo;
   document.querySelectorAll('.cause-field').forEach((f, i) => {
     f.value = last.causes[i] || '';
@@ -550,23 +594,19 @@ async function editLastEntry() {
   });
   updateCauseCount();
 
-  // Make sure the form is visible (not the thanks message)
   document.getElementById('cause-form').style.display = 'block';
   document.getElementById('thanks-msg').style.display = 'none';
 
-  // Switch to contribute tab
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
   document.querySelector('[data-tab="contribute"]').classList.add('active');
   document.getElementById('tab-contribute').classList.add('active');
 
-  // Delete from server
   try { await apiDelete('/api/contributions/last'); } catch(e) { console.error(e); }
   entries.pop();
   updateWords();
   renderRegistry();
 
-  // Scroll to form
   document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -635,11 +675,11 @@ document.getElementById('import-replace-btn').addEventListener('change', async (
   const text = await file.text();
   try {
     const imported = JSON.parse(text);
-    if (!Array.isArray(imported) || imported.length === 0) { alert('Fichier vide ou invalide.'); return; }
+    if (!Array.isArray(imported) || imported.length === 0) { alert(t('alertFileEmpty')); return; }
     const result = await apiPost('/api/import/replace', { entries: imported });
-    alert(`✅ Registre remplacé. ${result.total} contribution(s).`);
+    alert(t('alertReplaceFn', result.total));
     await loadFromServer(); updateWords(); renderRegistry(); renderCloud();
-  } catch { alert('❌ Fichier JSON invalide.'); }
+  } catch { alert(t('alertJsonInvalid')); }
   ev.target.value = '';
 });
 
@@ -657,13 +697,13 @@ document.getElementById('delete-all-btn').addEventListener('click', async () => 
   }
   try {
     const result = await apiDelete('/api/contributions/all');
-    alert(`✅ Registre vidé. ${result.deleted} contribution(s) supprimée(s).`);
+    alert(t('alertDeleteOkFn', result.deleted));
     entries = [];
     updateWords();
     renderRegistry();
     renderCloud();
   } catch (e) {
-    alert('❌ Erreur lors de la suppression.');
+    alert(t('alertDeleteError'));
   }
 });
 
@@ -696,7 +736,7 @@ function getCloudWordSet() {
   return [...top, ...cloudQueue.splice(0, 35)];
 }
 
-function renderCloud() {
+async function renderCloud() {
   if (cloudRotationInterval) { clearInterval(cloudRotationInterval); cloudRotationInterval = null; }
   const container = document.getElementById('word-cloud');
   if (allWords.length === 0) {
@@ -704,9 +744,11 @@ function renderCloud() {
     document.getElementById('export-cloud-btns').style.display = 'none';
     return;
   }
-  doRenderCloud(getCloudWordSet());
+  doRenderCloud(await translateWordSet(getCloudWordSet()));
   if (allWords.length > 50) {
-    cloudRotationInterval = setInterval(() => doRenderCloud(getCloudWordSet()), 15000);
+    cloudRotationInterval = setInterval(async () => {
+      doRenderCloud(await translateWordSet(getCloudWordSet()));
+    }, 15000);
   }
 }
 
@@ -764,10 +806,12 @@ function doRenderCloud(display) {
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (allWords.length > 0) renderCloud(); }, 300);
+  resizeTimer = setTimeout(async () => {
+    if (allWords.length > 0) doRenderCloud(await translateWordSet(getCloudWordSet()));
+  }, 300);
 });
 
-// ─── Export cloud as image ───
+// ─── Export cloud as PNG ───
 document.getElementById('export-cloud-img').addEventListener('click', () => {
   const container = document.getElementById('word-cloud');
   const wordEls = container.querySelectorAll('.cloud-word');
@@ -882,7 +926,7 @@ function renderMappingPage() {
   const pagination = document.getElementById('mapping-pagination');
 
   if (mappingCauses.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted); font-style:italic; font-size:13px; padding:20px 0; text-align:center;">Aucune cause trouvée.</p>';
+    list.innerHTML = `<p style="color:var(--text-muted); font-style:italic; font-size:13px; padding:20px 0; text-align:center;">${t('mappingEmpty')}</p>`;
     pagination.innerHTML = '';
     return;
   }
@@ -890,10 +934,11 @@ function renderMappingPage() {
   const start = mappingPage * MAPPING_PAGE_SIZE;
   const pageCauses = mappingCauses.slice(start, start + MAPPING_PAGE_SIZE);
   const totalPages = Math.ceil(mappingCauses.length / MAPPING_PAGE_SIZE);
+  const tagPh = t('tagPlaceholder');
 
   list.innerHTML = pageCauses.map(c => {
     const tagVal = causeTagsMap[`${c.contributionId}-${c.causeIndex}`] || '';
-    const dateStr = new Date(c.timestamp).toLocaleDateString('fr-FR');
+    const dateStr = new Date(c.timestamp).toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : currentLang === 'vi' ? 'vi-VN' : 'en-GB');
     return `<div class="entry-row" style="flex-wrap:nowrap; align-items:center; gap:10px;">
       <div style="flex:1; min-width:0; overflow:hidden;">
         <span class="entry-pseudo" style="font-size:13px;">${esc(c.pseudo)}</span>
@@ -902,14 +947,13 @@ function renderMappingPage() {
       </div>
       <div class="tag-input-wrap" style="flex-shrink:0; width:160px; display:flex; align-items:center; gap:0;">
         <input class="field mapping-tag-input" style="font-size:13px; padding:7px 10px; flex:1; border-radius:8px 0 0 8px; border-right:none;"
-          placeholder="Tag…" value="${esc(tagVal)}" autocomplete="off"
+          placeholder="${tagPh}" value="${esc(tagVal)}" autocomplete="off"
           data-contribution-id="${c.contributionId}" data-cause-index="${c.causeIndex}">
         <button class="tag-toggle-btn" type="button" style="height:100%; padding:0 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); border-left:none; border-radius:0 8px 8px 0; color:var(--text-muted); cursor:pointer; font-size:11px;" tabindex="-1">▾</button>
       </div>
     </div>`;
   }).join('');
 
-  // Tag autocomplete + save on each input
   list.querySelectorAll('.mapping-tag-input').forEach(input => {
     let dropdown = null;
 
@@ -919,7 +963,7 @@ function renderMappingPage() {
 
     function showDropdown(val) {
       removeDropdown();
-      const matches = allTags.filter(t => t.toLowerCase().includes(val.toLowerCase()) && t !== val.trim());
+      const matches = allTags.filter(tg => tg.toLowerCase().includes(val.toLowerCase()) && tg !== val.trim());
       const hasNew = val.trim() && !allTags.includes(val.trim());
       if (matches.length === 0 && !hasNew) return;
       dropdown = document.createElement('div');
@@ -939,7 +983,7 @@ function renderMappingPage() {
       if (hasNew) {
         const newOpt = document.createElement('div');
         newOpt.className = 'tag-option new-tag';
-        newOpt.textContent = `+ Créer "${val.trim()}"`;
+        newOpt.textContent = t('tagNewFn', val.trim());
         newOpt.addEventListener('mousedown', e => {
           e.preventDefault();
           input.value = val.trim();
@@ -968,26 +1012,25 @@ function renderMappingPage() {
     }
   });
 
-  // Pagination
   pagination.innerHTML = '';
   if (totalPages <= 1) return;
   if (mappingPage > 0) {
     const prev = document.createElement('button');
     prev.className = 'btn-sm';
     prev.style.cssText = 'background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted);';
-    prev.textContent = '← Préc.';
+    prev.textContent = t('mappingPrev');
     prev.addEventListener('click', () => { mappingPage--; renderMappingPage(); });
     pagination.appendChild(prev);
   }
   const info = document.createElement('span');
   info.style.cssText = 'font-size:12px; color:var(--text-muted); padding:8px 12px;';
-  info.textContent = `${mappingPage + 1} / ${totalPages} — ${mappingCauses.length} causes`;
+  info.textContent = t('mappingPageFn', mappingPage + 1, totalPages, mappingCauses.length);
   pagination.appendChild(info);
   if (mappingPage < totalPages - 1) {
     const next = document.createElement('button');
     next.className = 'btn-sm';
     next.style.cssText = 'background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.15); color:var(--text-muted);';
-    next.textContent = 'Suiv. →';
+    next.textContent = t('mappingNext');
     next.addEventListener('click', () => { mappingPage++; renderMappingPage(); });
     pagination.appendChild(next);
   }
@@ -1019,8 +1062,7 @@ async function saveTag(input) {
 (async () => {
   await loadFromServer();
   updateWords();
-  renderRegistry();
-  renderCloud();
+  applyLang(currentLang);
 })();
 </script>
 </body>
