@@ -204,7 +204,8 @@ app.post('/api/import/merge', async (req, res) => {
     }
     await client.query('COMMIT');
     const { rows } = await client.query('SELECT COUNT(*) as c FROM contributions');
-    res.json({ created, updated, total: Number(rows[0].c) });
+    const added = created + updated;
+    res.json({ added, created, updated, total: Number(rows[0].c) });
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('POST /api/import/merge error:', e);
