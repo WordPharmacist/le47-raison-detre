@@ -25,6 +25,14 @@ async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cause_tags (
+      contribution_id TEXT NOT NULL,
+      cause_index INTEGER NOT NULL,
+      tag TEXT NOT NULL,
+      PRIMARY KEY (contribution_id, cause_index)
+    )
+  `);
   const { rows } = await pool.query('SELECT COUNT(*) as c FROM contributions');
   console.log(`  ✦ Base de données prête — ${rows[0].c} contribution(s)`);
 }
@@ -103,29 +111,100 @@ app.delete('/api/contributions/last', async (req, res) => {
   }
 });
 
-// POST import (merge)
+// ─── DELETE all contributions ───
+app.delete('/api/contributions/all', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM cause_tags').catch(() => {});
+    const { rowCount } = await pool.query('DELETE FROM contributions');
+    res.json({ deleted: rowCount });
+  } catch (e) {
+    console.error('DELETE /api/contributions/all error:', e);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE a specific contribution by ID
+app.delete('/api/contributions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM contributions WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Contribution introuvable' });
+    }
+    res.json({ deleted: id });
+  } catch (e) {
+    console.error('DELETE /api/contributions/:id error:', e);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST import (merge) — crée ou met à jour, sans supprimer
 app.post('/api/import/merge', async (req, res) => {
   const { entries } = req.body;
   if (!Array.isArray(entries)) {
     return res.status(400).json({ error: 'Format invalide' });
   }
 
+  // Récupérer les contributions existantes pour distinguer création vs mise à jour
+  const { rows: existing } = await pool.query('SELECT id, pseudo FROM contributions');
+  const existingMap = new Map(existing.map(r => [r.id, r.pseudo]));
+
   const client = await pool.connect();
-  let added = 0;
+  let created = 0, updated = 0;
   try {
     await client.query('BEGIN');
     for (const e of entries) {
-      if (e.id && e.pseudo && Array.isArray(e.causes) && e.timestamp) {
-        const result = await client.query(
-          'INSERT INTO contributions (id, pseudo, causes, timestamp) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING',
-          [e.id, String(e.pseudo).substring(0, 30), JSON.stringify(e.causes.map(c => String(c).substring(0, 30))), e.timestamp]
+      const causes = Array.isArray(e.causes) ? e.causes
+        : (typeof e.causes === 'string' ? JSON.parse(e.causes) : null);
+      if (!e.pseudo || !Array.isArray(causes) || !e.timestamp) continue;
+
+      const pseudo = String(e.pseudo).substring(0, 30);
+      const causesJson = JSON.stringify(causes.map(c => String(c).substring(0, 30)));
+
+      // ID connu ET pseudo identique → mise à jour (sans toucher au timestamp)
+      const existingPseudo = e.id ? existingMap.get(e.id) : undefined;
+      const isKnownSamePseudo = existingPseudo !== undefined && existingPseudo === pseudo;
+
+      let id;
+      if (isKnownSamePseudo) {
+        id = e.id;
+        await client.query(
+          'UPDATE contributions SET causes = $1 WHERE id = $2',
+          [causesJson, id]
         );
-        if (result.rowCount > 0) added++;
+        updated++;
+      } else {
+        // ID absent, inconnu, ou pseudo différent → nouvelle entrée
+        id = crypto.randomUUID();
+        await client.query(
+          'INSERT INTO contributions (id, pseudo, causes, timestamp) VALUES ($1, $2, $3, $4)',
+          [id, pseudo, causesJson, Number(e.timestamp)]
+        );
+        created++;
+      }
+
+      // Tags associés
+      if (Array.isArray(e.tags)) {
+        for (let i = 0; i < e.tags.length; i++) {
+          const tag = e.tags[i];
+          if (tag && String(tag).trim()) {
+            await client.query(
+              'INSERT INTO cause_tags (contribution_id, cause_index, tag) VALUES ($1, $2, $3) ON CONFLICT (contribution_id, cause_index) DO UPDATE SET tag = $3',
+              [id, i, String(tag).trim().substring(0, 50)]
+            );
+          } else {
+            // Tag null/vide → supprimer l'éventuel tag existant
+            await client.query(
+              'DELETE FROM cause_tags WHERE contribution_id = $1 AND cause_index = $2',
+              [id, i]
+            );
+          }
+        }
       }
     }
     await client.query('COMMIT');
     const { rows } = await client.query('SELECT COUNT(*) as c FROM contributions');
-    res.json({ added, total: Number(rows[0].c) });
+    res.json({ created, updated, total: Number(rows[0].c) });
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('POST /api/import/merge error:', e);
@@ -145,14 +224,34 @@ app.post('/api/import/replace', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('DELETE FROM cause_tags');
     await client.query('DELETE FROM contributions');
+    let inserted = 0;
     for (const e of entries) {
-      if (e.id && e.pseudo && Array.isArray(e.causes) && e.timestamp) {
+      const causes = Array.isArray(e.causes) ? e.causes
+        : (typeof e.causes === 'string' ? JSON.parse(e.causes) : null);
+      if (e.id && e.pseudo && Array.isArray(causes) && e.timestamp) {
         await client.query(
           'INSERT INTO contributions (id, pseudo, causes, timestamp) VALUES ($1, $2, $3, $4)',
-          [e.id, String(e.pseudo).substring(0, 30), JSON.stringify(e.causes.map(c => String(c).substring(0, 30))), e.timestamp]
+          [e.id, String(e.pseudo).substring(0, 30), JSON.stringify(causes.map(c => String(c).substring(0, 30))), Number(e.timestamp)]
         );
+        inserted++;
+        if (Array.isArray(e.tags)) {
+          for (let i = 0; i < e.tags.length; i++) {
+            const tag = e.tags[i];
+            if (tag && String(tag).trim()) {
+              await client.query(
+                'INSERT INTO cause_tags (contribution_id, cause_index, tag) VALUES ($1, $2, $3)',
+                [e.id, i, String(tag).trim().substring(0, 50)]
+              );
+            }
+          }
+        }
       }
+    }
+    if (inserted === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Aucune entrée valide dans le fichier importé' });
     }
     await client.query('COMMIT');
     const { rows } = await client.query('SELECT COUNT(*) as c FROM contributions');
@@ -166,13 +265,68 @@ app.post('/api/import/replace', async (req, res) => {
   }
 });
 
-// ─── DELETE all contributions ───
-app.delete('/api/contributions/all', async (req, res) => {
+// ─── GET all individual causes with their tags ───
+app.get('/api/causes', async (req, res) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM contributions');
-    res.json({ deleted: rowCount });
+    const { rows: contribs } = await pool.query(
+      'SELECT id, pseudo, causes, timestamp FROM contributions ORDER BY timestamp DESC'
+    );
+    const { rows: tagRows } = await pool.query(
+      'SELECT contribution_id, cause_index, tag FROM cause_tags'
+    );
+    const tagMap = {};
+    tagRows.forEach(r => { tagMap[`${r.contribution_id}-${r.cause_index}`] = r.tag; });
+    const causes = [];
+    contribs.forEach(c => {
+      c.causes.forEach((cause, idx) => {
+        causes.push({
+          contributionId: c.id,
+          causeIndex: idx,
+          pseudo: c.pseudo,
+          cause: cause,
+          timestamp: Number(c.timestamp),
+          tag: tagMap[`${c.id}-${idx}`] || null,
+        });
+      });
+    });
+    res.json(causes);
   } catch (e) {
-    console.error('DELETE /api/contributions/all error:', e);
+    console.error('GET /api/causes error:', e);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ─── GET all tags ───
+app.get('/api/tags', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT DISTINCT tag FROM cause_tags ORDER BY tag ASC');
+    res.json(rows.map(r => r.tag));
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ─── POST set/remove tag on a cause ───
+app.post('/api/causes/tag', async (req, res) => {
+  const { contributionId, causeIndex, tag } = req.body;
+  if (!contributionId || causeIndex === undefined || causeIndex === null) {
+    return res.status(400).json({ error: 'Paramètres manquants' });
+  }
+  try {
+    if (!tag || String(tag).trim() === '') {
+      await pool.query(
+        'DELETE FROM cause_tags WHERE contribution_id = $1 AND cause_index = $2',
+        [contributionId, Number(causeIndex)]
+      );
+    } else {
+      await pool.query(
+        'INSERT INTO cause_tags (contribution_id, cause_index, tag) VALUES ($1, $2, $3) ON CONFLICT (contribution_id, cause_index) DO UPDATE SET tag = $3',
+        [contributionId, Number(causeIndex), String(tag).trim().substring(0, 50)]
+      );
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error('POST /api/causes/tag error:', e);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
